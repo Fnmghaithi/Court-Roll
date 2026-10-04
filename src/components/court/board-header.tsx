@@ -16,7 +16,7 @@ export function BoardHeader() {
   return (
     <header className="flex items-center justify-between gap-4">
       <div className="flex items-center gap-3 sm:gap-4">
-        <div className="flex size-11 shrink-0 items-center justify-center rounded-xl border bg-card sm:size-12">
+        <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground sm:size-12">
           <Landmark className="size-5 sm:size-6" />
         </div>
         <div>
@@ -26,7 +26,7 @@ export function BoardHeader() {
       </div>
 
       <div className="text-right">
-        <p className="font-mono text-2xl font-semibold tabular-nums tracking-tight sm:text-4xl">
+        <p className="font-mono text-2xl font-semibold text-gold tabular-nums tracking-tight sm:text-4xl">
           <time dateTime={now.toISOString()}>{timeFormat.format(now)}</time>
         </p>
         <p className="text-xs text-muted-foreground sm:text-base">{dateFormat.format(now)}</p>

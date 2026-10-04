@@ -25,17 +25,17 @@ export function SpotlightCard({ variant, courtCase, className }: SpotlightCardPr
       className={cn(
         "relative gap-5 overflow-hidden",
         isCurrent
-          ? "border-live/30 bg-gradient-to-br from-live/12 via-card to-card"
-          : "border-next/25 bg-gradient-to-br from-next/8 via-card to-card",
+          ? "border-gold/20 bg-cream"
+          : "border-primary bg-primary text-primary-foreground",
         className
       )}
     >
       <CardHeader className="flex items-center gap-2.5">
-        {isCurrent ? <LiveDot /> : <span className="size-2.5 rounded-full bg-next" />}
+        {isCurrent ? <LiveDot /> : <span className="size-2.5 rounded-full bg-primary-foreground/70" />}
         <span
           className={cn(
             "text-sm font-semibold uppercase tracking-[0.18em]",
-            isCurrent ? "text-live" : "text-next"
+            isCurrent ? "text-live" : "text-primary-foreground/80"
           )}
         >
           {COPY[variant].label}
@@ -61,27 +61,43 @@ export function SpotlightCard({ variant, courtCase, className }: SpotlightCardPr
                 isCurrent && "sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:items-end"
               )}
             >
-              <Party role="Plaintiff" name={courtCase.plaintiff} large={isCurrent} />
+              <Party role="Plaintiff" name={courtCase.plaintiff} large={isCurrent} onDark={!isCurrent} />
               {isCurrent && (
-                <span className="hidden pb-1 text-lg font-medium text-muted-foreground italic sm:block">
+                <span className="hidden pb-1 text-lg font-medium text-gold italic sm:block">
                   v.
                 </span>
               )}
-              <Party role="Defendant" name={courtCase.defendant} large={isCurrent} />
+              <Party role="Defendant" name={courtCase.defendant} large={isCurrent} onDark={!isCurrent} />
             </div>
           </div>
         ) : (
-          <p className="py-4 text-lg text-muted-foreground">{COPY[variant].empty}</p>
+          <p className={cn("py-4 text-lg", isCurrent ? "text-muted-foreground" : "text-primary-foreground/70")}>
+            {COPY[variant].empty}
+          </p>
         )}
       </CardContent>
     </Card>
   )
 }
 
-function Party({ role, name, large }: { role: string; name: string; large: boolean }) {
+interface PartyProps {
+  role: string
+  name: string
+  large: boolean
+  onDark: boolean
+}
+
+function Party({ role, name, large, onDark }: PartyProps) {
   return (
     <div className="min-w-0">
-      <p className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">{role}</p>
+      <p
+        className={cn(
+          "text-xs font-medium uppercase tracking-[0.14em]",
+          onDark ? "text-primary-foreground/60" : "text-muted-foreground"
+        )}
+      >
+        {role}
+      </p>
       <p
         className={cn(
           "mt-1 font-semibold text-balance",

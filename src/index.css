@@ -31,62 +31,45 @@
   --color-input: var(--input);
   --color-ring: var(--ring);
   /* Court-roll status colours */
+  --color-gold: var(--gold);
+  --color-cream: var(--cream);
   --color-live: var(--live);
-  --color-live-foreground: var(--live-foreground);
-  --color-next: var(--next);
-  --color-next-foreground: var(--next-foreground);
+  --color-live-soft: var(--live-soft);
+  --color-waiting: var(--waiting);
+  --color-waiting-soft: var(--waiting-soft);
+  --color-row-current: var(--row-current);
+  --color-row-alt: var(--row-alt);
 }
 
 :root {
+  /* Navy + gold judiciary palette, warm neutrals. */
   --radius: 0.75rem;
-  --background: oklch(0.985 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
+  --background: #e5e6ea;
+  --foreground: #1b1912;
+  --card: #ffffff;
+  --card-foreground: #1b1912;
+  --popover: #ffffff;
+  --popover-foreground: #1b1912;
+  --primary: #254a7f;
+  --primary-foreground: #ffffff;
+  --secondary: #f3f5f7;
+  --secondary-foreground: #1b1912;
+  --muted: #f3f5f7;
+  --muted-foreground: #8d8b7f;
+  --accent: #f3edde;
+  --accent-foreground: #1b1912;
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --live: oklch(0.6 0.15 155);
-  --live-foreground: oklch(0.985 0 0);
-  --next: oklch(0.7 0.16 70);
-  --next-foreground: oklch(0.2 0.03 70);
-}
-
-.dark {
-  color-scheme: dark;
-  --background: oklch(0.13 0.004 265);
-  --foreground: oklch(0.97 0 0);
-  --card: oklch(0.17 0.005 265);
-  --card-foreground: oklch(0.97 0 0);
-  --popover: oklch(0.17 0.005 265);
-  --popover-foreground: oklch(0.97 0 0);
-  --primary: oklch(0.92 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.24 0.005 265);
-  --secondary-foreground: oklch(0.97 0 0);
-  --muted: oklch(0.22 0.005 265);
-  --muted-foreground: oklch(0.68 0.01 265);
-  --accent: oklch(0.24 0.005 265);
-  --accent-foreground: oklch(0.97 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 9%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --live: oklch(0.76 0.17 155);
-  --live-foreground: oklch(0.18 0.04 155);
-  --next: oklch(0.82 0.15 75);
-  --next-foreground: oklch(0.2 0.04 75);
+  --border: #dedcd5;
+  --input: #dedcd5;
+  --ring: #7c96ba;
+  --gold: #8a6b25;
+  --cream: #f3edde;
+  --live: #4a7860;
+  --live-soft: #e9ede5;
+  --waiting: #816e40;
+  --waiting-soft: #fbfaf5;
+  --row-current: #f4f2ee;
+  --row-alt: #f3f5f7;
 }
 
 @layer base {

@@ -24,9 +24,9 @@ export function StatusBadge({ status, className }: { status: DisplayStatus; clas
       variant="outline"
       className={cn(
         "gap-2 px-3 py-1 text-sm",
-        status === "in_review" && "border-live/40 bg-live/15 text-live",
-        status === "next" && "border-next/40 bg-next/15 text-next",
-        status === "waiting" && "text-muted-foreground",
+        status === "in_review" && "border-live/25 bg-live-soft text-live",
+        status === "next" && "border-primary/25 bg-card text-primary",
+        status === "waiting" && "border-waiting/20 bg-waiting-soft text-waiting",
         className
       )}
     >
@@ -36,7 +36,7 @@ export function StatusBadge({ status, className }: { status: DisplayStatus; clas
         <span
           className={cn(
             "size-2 rounded-full",
-            status === "next" ? "bg-next" : "bg-muted-foreground/50"
+            status === "next" ? "bg-primary" : "bg-waiting"
           )}
         />
       )}

@@ -32,7 +32,7 @@ function Stat({ label, value }: { label: string; value: number }) {
   return (
     <Card className="gap-1 px-6 py-5">
       <span className="text-sm text-muted-foreground">{label}</span>
-      <span className="font-mono text-3xl font-semibold tabular-nums">{value}</span>
+      <span className="font-mono text-3xl font-semibold text-primary tabular-nums">{value}</span>
     </Card>
   )
 }
