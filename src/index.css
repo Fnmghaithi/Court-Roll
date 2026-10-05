@@ -73,6 +73,9 @@
   --waiting-soft: #fbfaf5;
   --row-current: #f4f2ee;
   --row-alt: #f3f5f7;
+  /* Dot grid on the page background. */
+  --dot: #c3c5cc;
+  --dot-gap: 1.5rem;
 }
 
 @layer base {
@@ -86,6 +89,9 @@
   body {
     @apply bg-background text-foreground antialiased;
     font-feature-settings: "tnum" 1;
+    background-image: radial-gradient(circle, var(--dot) 1.2px, transparent 1.6px);
+    background-size: var(--dot-gap) var(--dot-gap);
+    background-attachment: fixed;
   }
 }
 
