@@ -88,14 +88,14 @@
     @apply bg-background text-foreground antialiased;
     font-feature-settings: "tnum" 1, "cv11" 1;
   }
-  /* Faint Islamic geometric pattern behind the whole board (public/islamic-pattern.webp). */
+  /* Faint Islamic geometric pattern behind the whole board. */
   body::before {
     content: "";
     position: fixed;
     inset: 0;
     z-index: -1;
     pointer-events: none;
-    background: url("/islamic-pattern.webp") center / 36rem repeat;
+    background: url("https://hebbkx1anhila5yf.public.blob.vercel-storage.com/islamic-geometric-pattern-lfkcNPmV8BNURLmisc9pPMSlVB5uRG.webp") center / 36rem repeat;
     opacity: var(--pattern-opacity);
     filter: grayscale(1);
   }

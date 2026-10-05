@@ -3,8 +3,8 @@ import { useState } from "react"
 
 import { useNow } from "@/hooks/use-now"
 
-// Served from public/ so the logo can be swapped without a code change.
-const LOGO_SRC = `${import.meta.env.BASE_URL}sjc-logo.webp`
+const LOGO_SRC =
+  "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/sjc-logo-nXbwXSnNabsvNkaXs6LCxYN8xAp2nz.webp"
 
 const timeFormat = new Intl.DateTimeFormat(undefined, { hour: "2-digit", minute: "2-digit" })
 const dateFormat = new Intl.DateTimeFormat(undefined, {
