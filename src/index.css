@@ -74,7 +74,7 @@
   --row-current: #f4f2ee;
   --row-alt: #f3f5f7;
   /* Dot grid on the page background. */
-  --dot: #c3c5cc;
+  --dot: #a9adb7;
   --dot-gap: 1.5rem;
 }
 
@@ -89,10 +89,14 @@
   body {
     @apply bg-background text-foreground antialiased;
     font-feature-settings: "tnum" 1;
-    background-image: radial-gradient(circle, var(--dot) 1.2px, transparent 1.6px);
-    background-size: var(--dot-gap) var(--dot-gap);
-    background-attachment: fixed;
   }
+}
+
+/* Dot grid drawn on its own fixed layer behind the board, so page-level body styles can't hide it. */
+@utility bg-dots {
+  background-image: radial-gradient(circle, var(--dot) 1.5px, transparent 2px);
+  background-size: var(--dot-gap) var(--dot-gap);
+  background-position: center;
 }
 
 /* Seamless vertical marquee: the track holds two copies of the list and moves up by one copy. */
