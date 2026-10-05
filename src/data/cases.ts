@@ -1,4 +1,11 @@
-export type CaseStatus = "in_review" | "waiting"
+/**
+ * Where a case is in today's session:
+ * waiting, up next, being heard, pleadings finished, or judgment given.
+ */
+export type CaseStatus = "waiting" | "next" | "in_review" | "discussed" | "judged"
+
+/** Statuses only one case can hold at a time. */
+const UNIQUE_STATUSES: CaseStatus[] = ["in_review", "next"]
 
 /** Why a case is on today's roll: to hear the judgment, or for pleadings. */
 export type CaseListing = "judgment" | "pleading"
@@ -30,9 +37,8 @@ export const SESSION_INFO: SessionInfo = {
  * Today's hearing roll, in hearing order: the cases reserved for judgment come
  * first, then the cases listed for pleading.
  *
- * Sample data taken from the roll of 27/01/2026. The statuses are illustrative:
- * the first case is shown as being heard. Replace `fetchTodaysCases` with a
- * real API call later.
+ * Sample data taken from the roll of 27/01/2026. The starting statuses are
+ * illustrative: the first case is shown as being heard.
  */
 const TODAYS_CASES: CourtCase[] = [
   { id: "1", caseNumber: "210/7103/2024", plaintiff: "الشركة الوطنية المتحدة للهندسة والمقاولات ش م م", defendant: "شركة سعود بهوان للسيارات ش م م", listing: "judgment", status: "in_review" },
@@ -166,6 +172,58 @@ const TODAYS_CASES: CourtCase[] = [
   { id: "129", caseNumber: "4755/7103/2025", plaintiff: "مشوار الدولية", defendant: "سالم سليمان سالم السيابي", listing: "pleading", status: "waiting" },
 ]
 
+/*
+ * Status changes made in admin mode are kept in this browser's localStorage
+ * until there is a backend. That keeps them across reloads and syncs open tabs
+ * on the same machine, but TVs on other devices won't see them: replace
+ * `fetchTodaysCases` and `setCaseStatus` with API calls to share them.
+ */
+export const STATUS_STORAGE_KEY = "court-roll:statuses"
+
+type StatusOverrides = Record<string, CaseStatus>
+
+function readOverrides(): StatusOverrides {
+  try {
+    const raw = localStorage.getItem(STATUS_STORAGE_KEY)
+    return raw ? (JSON.parse(raw) as StatusOverrides) : {}
+  } catch {
+    return {}
+  }
+}
+
+function writeOverrides(overrides: StatusOverrides) {
+  try {
+    localStorage.setItem(STATUS_STORAGE_KEY, JSON.stringify(overrides))
+  } catch {
+    // Storage can be blocked (private windows, kiosk policies); the change
+    // then lasts only until the page reloads.
+  }
+}
+
+function applyOverrides(cases: CourtCase[], overrides: StatusOverrides) {
+  return cases.map((c) => (overrides[c.id] ? { ...c, status: overrides[c.id] } : c))
+}
+
 export async function fetchTodaysCases(): Promise<CourtCase[]> {
-  return TODAYS_CASES
+  return applyOverrides(TODAYS_CASES, readOverrides())
+}
+
+/**
+ * Changes one case's status and returns the updated roll. Only one case can be
+ * being heard or up next, so giving a case one of those statuses moves the
+ * case that held it back to waiting.
+ */
+export async function setCaseStatus(id: string, status: CaseStatus): Promise<CourtCase[]> {
+  const overrides = readOverrides()
+  const cases = applyOverrides(TODAYS_CASES, overrides)
+
+  if (UNIQUE_STATUSES.includes(status)) {
+    for (const c of cases) {
+      if (c.id !== id && c.status === status) overrides[c.id] = "waiting"
+    }
+  }
+  overrides[id] = status
+
+  writeOverrides(overrides)
+  return applyOverrides(TODAYS_CASES, overrides)
 }

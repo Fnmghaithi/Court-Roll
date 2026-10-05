@@ -7,6 +7,8 @@ interface AutoScrollProps {
   children: ReactNode
   /** Scroll speed in pixels per second. */
   speed?: number
+  /** When false, the content stays still and scrolls by hand instead. */
+  enabled?: boolean
   className?: string
 }
 
@@ -14,7 +16,7 @@ interface AutoScrollProps {
  * Continuously scrolls its content upward in a seamless loop, but only when the
  * content is taller than the space available. Short lists stay still.
  */
-export function AutoScroll({ children, speed = 32, className }: AutoScrollProps) {
+export function AutoScroll({ children, speed = 32, enabled = true, className }: AutoScrollProps) {
   const viewportRef = useRef<HTMLDivElement>(null)
   const contentRef = useRef<HTMLDivElement>(null)
   const [overflowing, setOverflowing] = useState(false)
@@ -39,7 +41,7 @@ export function AutoScroll({ children, speed = 32, className }: AutoScrollProps)
     return () => observer.disconnect()
   }, [speed])
 
-  const animate = overflowing && !reducedMotion
+  const animate = enabled && overflowing && !reducedMotion
 
   return (
     <div

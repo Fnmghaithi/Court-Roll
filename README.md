@@ -8,6 +8,20 @@ A display board for today's court hearings. It's built for TVs outside or inside
 
 The whole UI scales with the viewport, so it reads well from a 1080p or 4K TV across a hallway.
 
+## Admin mode
+
+Open the page with `#admin` at the end of the address (for example `http://localhost:5173/#admin`) to manage the session. The list stops scrolling, and clicking a case opens a menu to set its status:
+
+- تنظر الآن (being heard)
+- القضية التالية (up next)
+- تمت المناقشة (pleadings finished)
+- تم الحكم (judgment given)
+- في الانتظار (waiting, to undo a change)
+
+Only one case can be being heard and one up next. Picking a new one moves the previous case back to waiting. Finished cases are dimmed on the board.
+
+`#admin` only switches the interface; it is not a login. Until there is a backend, changes are saved in that browser's local storage. They survive a reload and update other tabs on the same machine, but TVs on other devices won't see them. Connect `fetchTodaysCases` and `setCaseStatus` in `src/data/cases.ts` to an API (behind real sign-in for admins) to share them.
+
 ## Stack
 
 React, TypeScript, Vite, Tailwind CSS v4 and shadcn/ui (Card, Badge, Separator), with lucide icons, IBM Plex Sans Arabic for text and Geist Mono for case numbers and the clock.
@@ -33,7 +47,7 @@ Each case has:
 - `plaintiff`, the appellant (المستأنف)
 - `defendant`, the appellee (المستأنف ضده)
 - `listing`: `"judgment"` (محجوزة للحكم) or `"pleading"` (مرافعة)
-- `status`: `"in_review"` or `"waiting"`
+- `status`: `"waiting"`, `"next"`, `"in_review"`, `"discussed"` or `"judged"`
 
 The roll itself has no statuses, so the first case is marked as being heard for the demo. `SESSION_INFO` in the same file holds the court name and hall shown in the header.
 
