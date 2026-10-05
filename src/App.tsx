@@ -12,13 +12,13 @@ export default function App() {
       <BoardHeader />
 
       <main className="grid flex-1 gap-6 lg:min-h-0 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
-        <section aria-label="Current and next case" className="flex flex-col gap-6 lg:min-h-0">
+        <section aria-label="القضية الحالية والتالية" className="flex flex-col gap-6 lg:min-h-0">
           <SpotlightCard variant="current" courtCase={current} className="lg:flex-1 lg:justify-center" />
           <SpotlightCard variant="next" courtCase={next} />
 
           <div className="grid grid-cols-2 gap-6">
-            <Stat label="Cases today" value={cases.length} />
-            <Stat label="Waiting" value={waitingCount} />
+            <Stat label="قضايا اليوم" value={cases.length} />
+            <Stat label="في الانتظار" value={waitingCount} />
           </div>
         </section>
 

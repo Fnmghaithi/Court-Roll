@@ -4,9 +4,9 @@ import { cn } from "@/lib/utils"
 export type DisplayStatus = "in_review" | "next" | "waiting"
 
 const LABELS: Record<DisplayStatus, string> = {
-  in_review: "In review",
-  next: "Up next",
-  waiting: "Waiting",
+  in_review: "جارٍ الآن",
+  next: "القضية التالية",
+  waiting: "في الانتظار",
 }
 
 export function LiveDot({ className }: { className?: string }) {

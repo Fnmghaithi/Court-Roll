@@ -11,8 +11,8 @@ interface SpotlightCardProps {
 }
 
 const COPY = {
-  current: { label: "Now in session", empty: "No case is being heard right now." },
-  next: { label: "Up next", empty: "No more cases waiting today." },
+  current: { label: "جارٍ الآن", empty: "لا توجد قضية منظورة حالياً." },
+  next: { label: "القضية التالية", empty: "لا توجد قضايا أخرى في الانتظار اليوم." },
 }
 
 /** Large, glanceable card for the case being heard and the one after it. */
@@ -34,7 +34,7 @@ export function SpotlightCard({ variant, courtCase, className }: SpotlightCardPr
         {isCurrent ? <LiveDot /> : <span className="size-2.5 rounded-full bg-primary-foreground/70" />}
         <span
           className={cn(
-            "text-sm font-semibold uppercase tracking-[0.18em]",
+            "text-base font-bold",
             isCurrent ? "text-live" : "text-primary-foreground/80"
           )}
         >
@@ -52,7 +52,7 @@ export function SpotlightCard({ variant, courtCase, className }: SpotlightCardPr
                 isCurrent ? "text-4xl sm:text-5xl" : "text-2xl sm:text-3xl"
               )}
             >
-              {courtCase.caseNumber}
+              <span dir="ltr">{courtCase.caseNumber}</span>
             </p>
 
             <div
@@ -61,13 +61,11 @@ export function SpotlightCard({ variant, courtCase, className }: SpotlightCardPr
                 isCurrent && "sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:items-end"
               )}
             >
-              <Party role="Plaintiff" name={courtCase.plaintiff} large={isCurrent} onDark={!isCurrent} />
+              <Party role="المستأنف" name={courtCase.plaintiff} large={isCurrent} onDark={!isCurrent} />
               {isCurrent && (
-                <span className="hidden pb-1 text-lg font-medium text-gold italic sm:block">
-                  v.
-                </span>
+                <span className="hidden pb-1 text-lg font-semibold text-gold sm:block">ضد</span>
               )}
-              <Party role="Defendant" name={courtCase.defendant} large={isCurrent} onDark={!isCurrent} />
+              <Party role="المستأنف ضده" name={courtCase.defendant} large={isCurrent} onDark={!isCurrent} />
             </div>
           </div>
         ) : (
@@ -92,7 +90,7 @@ function Party({ role, name, large, onDark }: PartyProps) {
     <div className="min-w-0">
       <p
         className={cn(
-          "text-xs font-medium uppercase tracking-[0.14em]",
+          "text-sm font-medium",
           onDark ? "text-primary-foreground/60" : "text-muted-foreground"
         )}
       >
