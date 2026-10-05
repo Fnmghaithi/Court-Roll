@@ -10,7 +10,7 @@ The whole UI scales with the viewport, so it reads well from a 1080p or 4K TV ac
 
 ## Admin mode
 
-Click the settings button next to the clock to manage the session, or open the page with `#admin` at the end of the address (for example `http://localhost:5173/#admin`). The list stops scrolling, and clicking a case opens a menu to set its status:
+To manage the session, hover over the clock and click the settings button that appears beside it, or open the page with `#admin` at the end of the address (for example `http://localhost:5173/#admin`). On phones the button is hidden, so use `#admin` there. The list stops scrolling, and clicking a case opens a menu to set its status:
 
 - تنظر الآن (being heard)
 - القضية التالية (up next)

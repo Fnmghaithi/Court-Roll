@@ -45,7 +45,9 @@ export function BoardHeader({ isAdmin, onToggleAdmin }: BoardHeaderProps) {
         </div>
       </div>
 
-      <div className="group/clock flex shrink-0 items-center gap-3 sm:gap-5">
+      {/* The admin button floats beside the clock without taking space, so the clock stays at the edge.
+          It is left off phones, where it would cover the court name; use #admin there. */}
+      <div className="group/clock relative shrink-0">
         <div className="text-end">
           <p className="font-mono text-2xl font-semibold text-gold tabular-nums sm:text-4xl">
             <time dateTime={now.toISOString()}>{timeFormat.format(now)}</time>
@@ -59,7 +61,7 @@ export function BoardHeader({ isAdmin, onToggleAdmin }: BoardHeaderProps) {
           aria-label={isAdmin ? "إنهاء وضع الإدارة" : "وضع الإدارة"}
           title={isAdmin ? "إنهاء وضع الإدارة" : "وضع الإدارة"}
           className={cn(
-            "flex size-9 items-center justify-center rounded-lg border transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
+            "absolute -start-12 top-1/2 hidden size-9 -translate-y-1/2 items-center justify-center rounded-lg border transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary sm:flex",
             isAdmin
               ? "border-primary bg-primary text-primary-foreground"
               : // Hidden from the audience; it shows when the mouse is over the clock area or it has keyboard focus.
