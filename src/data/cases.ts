@@ -182,21 +182,26 @@ export const STATUS_STORAGE_KEY = "court-roll:statuses"
 
 type StatusOverrides = Record<string, CaseStatus>
 
+// In-memory copy, so changes still work where storage is blocked
+// (private windows, kiosk policies, sandboxed embeds).
+let memoryOverrides: StatusOverrides = {}
+
 function readOverrides(): StatusOverrides {
   try {
     const raw = localStorage.getItem(STATUS_STORAGE_KEY)
-    return raw ? (JSON.parse(raw) as StatusOverrides) : {}
+    if (raw) memoryOverrides = JSON.parse(raw) as StatusOverrides
   } catch {
-    return {}
+    // Fall back to the in-memory copy.
   }
+  return { ...memoryOverrides }
 }
 
 function writeOverrides(overrides: StatusOverrides) {
+  memoryOverrides = overrides
   try {
     localStorage.setItem(STATUS_STORAGE_KEY, JSON.stringify(overrides))
   } catch {
-    // Storage can be blocked (private windows, kiosk policies); the change
-    // then lasts only until the page reloads.
+    // Without storage, the change lasts until the page reloads.
   }
 }
 

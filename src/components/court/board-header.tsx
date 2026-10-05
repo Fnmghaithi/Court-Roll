@@ -1,7 +1,8 @@
-import { Landmark } from "lucide-react"
+import { Landmark, Settings2 } from "lucide-react"
 
 import { SESSION_INFO } from "@/data/cases"
 import { useNow } from "@/hooks/use-now"
+import { cn } from "@/lib/utils"
 
 // Arabic wording with Western digits, to match how the court roll writes numbers.
 const timeFormat = new Intl.DateTimeFormat("ar-OM", {
@@ -18,7 +19,12 @@ const dateFormat = new Intl.DateTimeFormat("ar-OM", {
   numberingSystem: "latn",
 })
 
-export function BoardHeader() {
+interface BoardHeaderProps {
+  isAdmin: boolean
+  onToggleAdmin: () => void
+}
+
+export function BoardHeader({ isAdmin, onToggleAdmin }: BoardHeaderProps) {
   const now = useNow()
 
   return (
@@ -39,11 +45,28 @@ export function BoardHeader() {
         </div>
       </div>
 
-      <div className="shrink-0 text-end">
-        <p className="font-mono text-2xl font-semibold text-gold tabular-nums sm:text-4xl">
-          <time dateTime={now.toISOString()}>{timeFormat.format(now)}</time>
-        </p>
-        <p className="text-xs text-muted-foreground sm:text-base">{dateFormat.format(now)}</p>
+      <div className="flex shrink-0 items-center gap-3 sm:gap-5">
+        <div className="text-end">
+          <p className="font-mono text-2xl font-semibold text-gold tabular-nums sm:text-4xl">
+            <time dateTime={now.toISOString()}>{timeFormat.format(now)}</time>
+          </p>
+          <p className="text-xs text-muted-foreground sm:text-base">{dateFormat.format(now)}</p>
+        </div>
+        <button
+          type="button"
+          onClick={onToggleAdmin}
+          aria-pressed={isAdmin}
+          aria-label={isAdmin ? "إنهاء وضع الإدارة" : "وضع الإدارة"}
+          title={isAdmin ? "إنهاء وضع الإدارة" : "وضع الإدارة"}
+          className={cn(
+            "flex size-9 items-center justify-center rounded-lg border transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
+            isAdmin
+              ? "border-primary bg-primary text-primary-foreground"
+              : "border-transparent text-muted-foreground/60 hover:border-border hover:bg-card hover:text-foreground"
+          )}
+        >
+          <Settings2 className="size-4" />
+        </button>
       </div>
     </header>
   )

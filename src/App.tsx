@@ -9,12 +9,12 @@ import { useCourtCases } from "@/hooks/use-court-cases"
 
 export default function App() {
   const { cases, current, next, waitingCount, updateStatus } = useCourtCases()
-  const isAdmin = useAdminMode()
+  const { isAdmin, toggleAdmin } = useAdminMode()
 
   return (
     <div className="relative isolate mx-auto flex min-h-dvh max-w-[120rem] flex-col gap-6 p-4 sm:p-6 lg:h-dvh lg:p-8">
       <div aria-hidden className="pointer-events-none fixed inset-0 -z-10 bg-background bg-dots" />
-      <BoardHeader />
+      <BoardHeader isAdmin={isAdmin} onToggleAdmin={toggleAdmin} />
 
       {isAdmin && (
         <div

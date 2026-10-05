@@ -10,7 +10,7 @@ The whole UI scales with the viewport, so it reads well from a 1080p or 4K TV ac
 
 ## Admin mode
 
-Open the page with `#admin` at the end of the address (for example `http://localhost:5173/#admin`) to manage the session. The list stops scrolling, and clicking a case opens a menu to set its status:
+Click the settings button next to the clock to manage the session, or open the page with `#admin` at the end of the address (for example `http://localhost:5173/#admin`). The list stops scrolling, and clicking a case opens a menu to set its status:
 
 - تنظر الآن (being heard)
 - القضية التالية (up next)
@@ -20,7 +20,7 @@ Open the page with `#admin` at the end of the address (for example `http://local
 
 Only one case can be being heard and one up next. Picking a new one moves the previous case back to waiting. Finished cases are dimmed on the board.
 
-`#admin` only switches the interface; it is not a login. Until there is a backend, changes are saved in that browser's local storage. They survive a reload and update other tabs on the same machine, but TVs on other devices won't see them. Connect `fetchTodaysCases` and `setCaseStatus` in `src/data/cases.ts` to an API (behind real sign-in for admins) to share them.
+`#admin` only switches the interface; it is not a login. Until there is a backend, changes are saved in that browser's local storage (or only in memory where storage is blocked). They survive a reload and update other tabs on the same machine, but TVs on other devices won't see them. Connect `fetchTodaysCases` and `setCaseStatus` in `src/data/cases.ts` to an API (behind real sign-in for admins) to share them.
 
 ## Stack
 
