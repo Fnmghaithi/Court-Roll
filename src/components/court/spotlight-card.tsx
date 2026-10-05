@@ -25,7 +25,7 @@ export function SpotlightCard({ variant, courtCase, className }: SpotlightCardPr
       className={cn(
         "relative gap-5 overflow-hidden",
         isCurrent
-          ? "border-gold/15 bg-gradient-to-l from-cream to-cream-light"
+          ? "border-gold/20 bg-cream"
           : "border-primary bg-primary text-primary-foreground",
         className
       )}

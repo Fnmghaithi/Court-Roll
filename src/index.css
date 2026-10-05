@@ -33,7 +33,6 @@
   /* Court-roll status colours */
   --color-gold: var(--gold);
   --color-cream: var(--cream);
-  --color-cream-light: var(--cream-light);
   --color-live: var(--live);
   --color-live-soft: var(--live-soft);
   --color-waiting: var(--waiting);
@@ -65,9 +64,6 @@
   --ring: #7c96ba;
   --gold: #8a6b25;
   --cream: #f3edde;
-  --cream-light: #faf8f3;
-  /* How strongly the background pattern shows through. Keep it barely visible. */
-  --pattern-opacity: 0.5;
   --live: #4a7860;
   --live-soft: #e9ede5;
   --waiting: #816e40;
@@ -87,16 +83,6 @@
   body {
     @apply bg-background text-foreground antialiased;
     font-feature-settings: "tnum" 1, "cv11" 1;
-  }
-  /* Faint Islamic geometric pattern behind the whole board. */
-  body::before {
-    content: "";
-    position: fixed;
-    inset: 0;
-    z-index: -1;
-    pointer-events: none;
-    background: url("/islamic-pattern.webp") center / cover no-repeat;
-    opacity: var(--pattern-opacity);
   }
 }
 
