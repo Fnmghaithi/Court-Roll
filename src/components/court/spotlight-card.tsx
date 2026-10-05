@@ -58,13 +58,10 @@ export function SpotlightCard({ variant, courtCase, className }: SpotlightCardPr
             <div
               className={cn(
                 "grid gap-4",
-                isCurrent && "sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:items-end"
+                isCurrent && "sm:grid-cols-2 sm:gap-8"
               )}
             >
               <Party role="المستأنف" name={courtCase.plaintiff} large={isCurrent} onDark={!isCurrent} />
-              {isCurrent && (
-                <span className="hidden pb-1 text-lg font-semibold text-gold sm:block">ضد</span>
-              )}
               <Party role="المستأنف ضده" name={courtCase.defendant} large={isCurrent} onDark={!isCurrent} />
             </div>
           </div>
