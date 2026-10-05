@@ -47,7 +47,7 @@
 :root {
   /* Navy + gold judiciary palette, warm neutrals. */
   --radius: 0.75rem;
-  --background: #e5e6ea;
+  --background: #faf9f5;
   --foreground: #1b1912;
   --card: #ffffff;
   --card-foreground: #1b1912;
@@ -74,7 +74,7 @@
   --row-current: #f4f2ee;
   --row-alt: #f3f5f7;
   /* Dot grid on the page background. */
-  --dot: #a9adb7;
+  --dot: #e2e0d9;
   --dot-gap: 1.5rem;
 }
 
@@ -94,7 +94,7 @@
 
 /* Dot grid drawn on its own fixed layer behind the board, so page-level body styles can't hide it. */
 @utility bg-dots {
-  background-image: radial-gradient(circle, var(--dot) 1.5px, transparent 2px);
+  background-image: radial-gradient(circle, var(--dot) 1.3px, transparent 1.8px);
   background-size: var(--dot-gap) var(--dot-gap);
   background-position: center;
 }
