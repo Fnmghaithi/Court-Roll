@@ -3,8 +3,7 @@ import { useState } from "react"
 
 import { useNow } from "@/hooks/use-now"
 
-const LOGO_SRC =
-  "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/sjc-logo-nXbwXSnNabsvNkaXs6LCxYN8xAp2nz.webp"
+const LOGO_SRC = `${import.meta.env.BASE_URL}sjc-logo.webp`
 
 const timeFormat = new Intl.DateTimeFormat(undefined, { hour: "2-digit", minute: "2-digit" })
 const dateFormat = new Intl.DateTimeFormat(undefined, {
@@ -50,7 +49,7 @@ function Logo() {
       src={LOGO_SRC}
       alt="Supreme Judiciary Council"
       onError={() => setFailed(true)}
-      className="h-14 w-auto justify-self-center [grid-area:logo] sm:h-20"
+      className="h-16 w-auto justify-self-center [grid-area:logo] sm:h-28"
     />
   )
 }

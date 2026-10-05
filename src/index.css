@@ -67,7 +67,7 @@
   --cream: #f3edde;
   --cream-light: #faf8f3;
   /* How strongly the background pattern shows through. Keep it barely visible. */
-  --pattern-opacity: 0.07;
+  --pattern-opacity: 0.5;
   --live: #4a7860;
   --live-soft: #e9ede5;
   --waiting: #816e40;
@@ -95,9 +95,8 @@
     inset: 0;
     z-index: -1;
     pointer-events: none;
-    background: url("https://hebbkx1anhila5yf.public.blob.vercel-storage.com/islamic-geometric-pattern-lfkcNPmV8BNURLmisc9pPMSlVB5uRG.webp") center / 36rem repeat;
+    background: url("/islamic-pattern.webp") center / cover no-repeat;
     opacity: var(--pattern-opacity);
-    filter: grayscale(1);
   }
 }
 
