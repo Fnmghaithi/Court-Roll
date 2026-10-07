@@ -1,6 +1,13 @@
 import type { CourtCase } from "@/data/cases"
 
-import { buildAnnouncement, testAnnouncement, type AnnouncementLanguage, type SpeechSegment } from "./announcement"
+import {
+  buildAnnouncement,
+  TASHKEEL,
+  testAnnouncement,
+  type AnnouncementLanguage,
+  type CallMode,
+  type SpeechSegment,
+} from "./announcement"
 import { readModelFile, readModelJson } from "./model-files"
 import type { ModelName, SupertonicConfig, SupertonicTTS, VoiceStyle, VoiceStyleJson } from "./supertonic"
 
@@ -24,13 +31,15 @@ export const QUALITY_PRESETS = [
 
 export interface VoiceSettings {
   lang: AnnouncementLanguage
+  /** Whether a call reads the case number, the parties, or both. */
+  mode: CallMode
   voice: Voice
   /** Speaking rate; 1 is the model's natural pace. */
   speed: number
   steps: number
 }
 
-export const DEFAULT_VOICE_SETTINGS: VoiceSettings = { lang: "ar", voice: "M1", speed: 1.05, steps: 8 }
+export const DEFAULT_VOICE_SETTINGS: VoiceSettings = { lang: "ar", mode: "both", voice: "M1", speed: 1.05, steps: 8 }
 export const SPEED_RANGE = { min: 0.8, max: 1.5, step: 0.05 }
 
 export type AnnouncerStatus =
@@ -71,6 +80,7 @@ function readSettings(): VoiceSettings {
     const s = { ...DEFAULT_VOICE_SETTINGS, ...(JSON.parse(raw) as Partial<VoiceSettings>) }
     return {
       lang: s.lang === "en" ? "en" : "ar",
+      mode: s.mode === "number" || s.mode === "parties" ? s.mode : "both",
       voice: VOICES.includes(s.voice) ? s.voice : DEFAULT_VOICE_SETTINGS.voice,
       speed: Math.min(SPEED_RANGE.max, Math.max(SPEED_RANGE.min, Number(s.speed) || DEFAULT_VOICE_SETTINGS.speed)),
       steps: QUALITY_PRESETS.some((q) => q.steps === s.steps) ? s.steps : DEFAULT_VOICE_SETTINGS.steps,
@@ -209,7 +219,9 @@ function speak(segments: SpeechSegment[]) {
       if (id !== requestId) return
       update({ status: { state: "speaking", backend: loaded.backend } })
       const style = await loadVoiceStyle(loaded, settings.voice)
-      const pcm = await loaded.tts.synthesize(segments, style, { totalStep: settings.steps, speed: settings.speed })
+      // Use tashkeel only if the model was trained with it; otherwise read the bare letters.
+      const spoken = loaded.tts.supports("\u064E") ? segments : segments.map((s) => ({ ...s, text: s.text.replace(TASHKEEL, "") }))
+      const pcm = await loaded.tts.synthesize(spoken, style, { totalStep: settings.steps, speed: settings.speed })
       if (id !== requestId) return
       const buffer = ctx.createBuffer(1, pcm.length, loaded.tts.sampleRate)
       buffer.copyToChannel(pcm, 0)
@@ -233,7 +245,7 @@ function speak(segments: SpeechSegment[]) {
 
 /** Announces the case now being heard, if announcements are on. */
 export function announceCase(courtCase: CourtCase) {
-  if (snapshot.enabled) speak(buildAnnouncement(courtCase, snapshot.settings.lang))
+  if (snapshot.enabled) speak(buildAnnouncement(courtCase, snapshot.settings.lang, snapshot.settings.mode))
 }
 
 /** Plays a short test sentence with the current settings. */

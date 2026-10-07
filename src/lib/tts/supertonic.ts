@@ -131,6 +131,12 @@ export class SupertonicTTS {
     this.sampleRate = cfgs.ae.sample_rate
   }
 
+  /** Whether the model's character set includes `char` (e.g. Arabic diacritics). */
+  supports(char: string) {
+    const cp = char.codePointAt(0)!
+    return cp < this.indexer.length && this.indexer[cp] >= 0
+  }
+
   /** Synthesises one chunk of text. Returns mono PCM samples at `sampleRate`. */
   private async infer(text: string, lang: string, style: Style, totalStep: number, speed: number) {
     const { ort } = this

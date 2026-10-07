@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Slider } from "@/components/ui/slider"
 import type { CourtCase } from "@/data/cases"
 import { useAnnouncer } from "@/hooks/use-announcer"
-import { ANNOUNCEMENT_LANGUAGES, type AnnouncementLanguage } from "@/lib/tts/announcement"
+import { ANNOUNCEMENT_LANGUAGES, CALL_MODES, type AnnouncementLanguage, type CallMode } from "@/lib/tts/announcement"
 import {
   announceCase,
   announceTest,
@@ -132,6 +132,22 @@ function VoiceSettingsPopover() {
       <PopoverContent align="end" className="w-80" dir="rtl">
         <div className="flex flex-col gap-5">
           <h2 className="font-bold">إعدادات النداء الصوتي</h2>
+
+          <div className="grid gap-2">
+            <Label htmlFor="voice-mode">طريقة النداء</Label>
+            <Select dir="rtl" value={settings.mode} onValueChange={(value) => updateVoiceSettings({ mode: value as CallMode })}>
+              <SelectTrigger id="voice-mode" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {CALL_MODES.map((m) => (
+                  <SelectItem key={m.value} value={m.value}>
+                    {m.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
           <div className="grid gap-2">
             <Label htmlFor="voice-lang">اللغة</Label>

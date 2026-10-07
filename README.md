@@ -28,12 +28,13 @@ When an admin marks a case as تنظر الآن, the board announces it, for exa
 
 > تُنظر الآن الدعوى رقم مئتين وعشرة لسنة ألفين وأربعة وعشرين. المستأنف: الشركة الوطنية المتحدة للهندسة والمقاولات. المستأنف ضده: شركة سعود بهوان للسيارات.
 
-Case numbers are read as words (number and year), and company-form abbreviations such as ش م م are left out so they aren't spelled letter by letter.
+Case numbers are read as words (number and year) using tafqit with full tashkeel, for example رَقْم مِئَتَيْن وَعَشَرَة لِسَنَة أَلْفَيْن وَأَرْبَعَة وَعِشْرِين, in the pausal form announcers use. If the voice model's character set lacks the diacritics, they are stripped automatically. Company-form abbreviations such as ش م م are left out of party names so they aren't spelled letter by letter.
 
 The speech comes from [Supertonic 3](https://github.com/supertone-oss-archive/supertonic), an open text-to-speech model that runs in the browser with ONNX Runtime Web: on the graphics card (WebGPU) when the browser supports it, otherwise on the processor (WebAssembly). Nothing is sent to a speech service. The sound plays on the device where the admin clicks.
 
 In admin mode the banner shows the voice status and has buttons to repeat the last call, open **إعدادات الصوت**, and turn announcements off. The settings, remembered per browser, are:
 
+- **Call style (طريقة النداء)**: the case number only, the parties' names only, or both.
 - **Language**: Arabic, or English (the surrounding words in English, party names still read in Arabic). Supertonic speaks 31 languages; adding another means adding its wording to `buildAnnouncement` in `src/lib/tts/announcement.ts`.
 - **Voice**: five male and five female voices.
 - **Speed**: 0.8× to 1.5×.
