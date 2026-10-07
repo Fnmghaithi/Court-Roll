@@ -1,36 +1,45 @@
-import { Settings2 } from "lucide-react"
+import { useCallback, useEffect } from "react"
 
+import { AdminBanner } from "@/components/court/admin-banner"
 import { BoardHeader } from "@/components/court/board-header"
 import { CaseList } from "@/components/court/case-list"
 import { SpotlightCard } from "@/components/court/spotlight-card"
 import { Card } from "@/components/ui/card"
 import { useAdminMode } from "@/hooks/use-admin-mode"
+import { useAnnouncer } from "@/hooks/use-announcer"
 import { useCourtCases } from "@/hooks/use-court-cases"
+import type { CaseStatus } from "@/data/cases"
+import { buildAnnouncement } from "@/lib/tts/announcement"
+import { announce, preloadAnnouncer } from "@/lib/tts/announcer"
 
 export default function App() {
   const { cases, current, next, waitingCount, updateStatus } = useCourtCases()
   const { isAdmin, toggleAdmin } = useAdminMode()
+  const { enabled: announcementsEnabled } = useAnnouncer()
+
+  // Fetch the voice model as soon as an admin could need it, so the first call isn't delayed.
+  useEffect(() => {
+    if (isAdmin && announcementsEnabled) preloadAnnouncer()
+  }, [isAdmin, announcementsEnabled])
+
+  const changeStatus = useCallback(
+    (id: string, status: CaseStatus) => {
+      if (status === "in_review") {
+        const courtCase = cases.find((c) => c.id === id)
+        // Called from the menu click, so the browser lets the announcement play.
+        if (courtCase) announce(buildAnnouncement(courtCase))
+      }
+      updateStatus(id, status)
+    },
+    [cases, updateStatus]
+  )
 
   return (
     <div className="relative isolate mx-auto flex min-h-dvh max-w-[120rem] flex-col gap-6 p-4 sm:p-6 lg:h-dvh lg:p-8">
       <div aria-hidden className="pointer-events-none fixed inset-0 -z-10 bg-background bg-dots" />
       <BoardHeader isAdmin={isAdmin} onToggleAdmin={toggleAdmin} />
 
-      {isAdmin && (
-        <div
-          role="status"
-          className="flex items-center gap-3 rounded-xl border border-primary/20 bg-card px-4 py-3 text-sm text-primary sm:text-base"
-        >
-          <Settings2 aria-hidden className="size-5 shrink-0" />
-          <p>
-            <span className="font-bold">وضع الإدارة</span>
-            <span className="mx-2 text-primary/40" aria-hidden>
-              |
-            </span>
-            اضغط على أي قضية في الجدول لتغيير حالتها.
-          </p>
-        </div>
-      )}
+      {isAdmin && <AdminBanner />}
 
       <main className="grid flex-1 gap-6 lg:min-h-0 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
         <section aria-label="القضية الحالية والتالية" className="flex flex-col gap-6 lg:min-h-0">
@@ -46,7 +55,7 @@ export default function App() {
         <CaseList
           cases={cases}
           nextId={next?.id}
-          onStatusChange={isAdmin ? updateStatus : undefined}
+          onStatusChange={isAdmin ? changeStatus : undefined}
           className="lg:h-full"
         />
       </main>

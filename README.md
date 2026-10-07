@@ -22,6 +22,27 @@ Only one case can be being heard and one up next. Picking a new one moves the pr
 
 `#admin` only switches the interface; it is not a login. Until there is a backend, changes are saved in that browser's local storage (or only in memory where storage is blocked). They survive a reload and update other tabs on the same machine, but TVs on other devices won't see them. Connect `fetchTodaysCases` and `setCaseStatus` in `src/data/cases.ts` to an API (behind real sign-in for admins) to share them.
 
+## Voice announcements
+
+When an admin marks a case as تنظر الآن, the board announces it in Arabic, for example:
+
+> تُنظر الآن الدعوى رقم مئتين وعشرة لسنة ألفين وأربعة وعشرين. المستأنف: الشركة الوطنية المتحدة للهندسة والمقاولات. المستأنف ضده: شركة سعود بهوان للسيارات.
+
+Case numbers are read as words (number and year), and company-form abbreviations such as ش م م are left out so they aren't spelled letter by letter.
+
+The speech comes from [Supertonic 3](https://github.com/supertone-oss-archive/supertonic), an open text-to-speech model that runs in the browser with ONNX Runtime Web (WebGPU when available, otherwise WebAssembly). Nothing is sent to a speech service. The engine and model load only in admin mode, starting as soon as it is turned on; the admin banner shows their status and has a switch to turn announcements off. The sound plays on the device where the admin clicks.
+
+The model files (several hundred MB, downloaded once and then cached by the browser) come from the archived Supertonic 3 snapshot on Hugging Face by default. Supertone has archived the project, so for use in the court it is safer to host the files yourself:
+
+```bash
+pip install huggingface_hub
+hf download supertone-oss-archive/supertonic-3 \
+  --revision aafc6e32416a594460b32413efc49d7fe4ce6d46 \
+  --local-dir public/supertonic
+```
+
+Then build with `VITE_SUPERTONIC_URL=/supertonic`. `VITE_SUPERTONIC_VOICE` picks the voice (`M1` to `M5`, `F1` to `F5`; default `M1`). The model is licensed under OpenRAIL-M and the inference code ported in `src/lib/tts/supertonic.ts` under MIT.
+
 ## Stack
 
 React, TypeScript, Vite, Tailwind CSS v4 and shadcn/ui (Card, Badge, Separator), with lucide icons, IBM Plex Sans Arabic for text and Geist Mono for case numbers and the clock.
