@@ -55,6 +55,8 @@ React, TypeScript, Vite, Tailwind CSS v4 and shadcn/ui (Card, Badge, Separator),
 
 ## Running
 
+Needs Node.js 20.19+ or 22.12+ (`.nvmrc` pins 22). On older Node, npm skips the build tool's native package and `npm run dev` fails with "Cannot find native binding".
+
 ```bash
 npm install
 npm run dev      # development server
