@@ -22,3 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Supertonic voice model (downloaded with `npm run download-voice`)
+public/supertonic/

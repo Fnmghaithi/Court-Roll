@@ -9,8 +9,7 @@ import { useAdminMode } from "@/hooks/use-admin-mode"
 import { useAnnouncer } from "@/hooks/use-announcer"
 import { useCourtCases } from "@/hooks/use-court-cases"
 import type { CaseStatus } from "@/data/cases"
-import { buildAnnouncement } from "@/lib/tts/announcement"
-import { announce, preloadAnnouncer } from "@/lib/tts/announcer"
+import { announceCase, preloadAnnouncer } from "@/lib/tts/announcer"
 
 export default function App() {
   const { cases, current, next, waitingCount, updateStatus } = useCourtCases()
@@ -27,7 +26,7 @@ export default function App() {
       if (status === "in_review") {
         const courtCase = cases.find((c) => c.id === id)
         // Called from the menu click, so the browser lets the announcement play.
-        if (courtCase) announce(buildAnnouncement(courtCase))
+        if (courtCase) announceCase(courtCase)
       }
       updateStatus(id, status)
     },
@@ -39,7 +38,7 @@ export default function App() {
       <div aria-hidden className="pointer-events-none fixed inset-0 -z-10 bg-background bg-dots" />
       <BoardHeader isAdmin={isAdmin} onToggleAdmin={toggleAdmin} />
 
-      {isAdmin && <AdminBanner />}
+      {isAdmin && <AdminBanner currentCase={current} />}
 
       <main className="grid flex-1 gap-6 lg:min-h-0 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
         <section aria-label="القضية الحالية والتالية" className="flex flex-col gap-6 lg:min-h-0">

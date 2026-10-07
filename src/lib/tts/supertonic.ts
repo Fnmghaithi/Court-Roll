@@ -180,14 +180,23 @@ export class SupertonicTTS {
     return (vocOut.wav_tts.data as Float32Array).subarray(0, wavLen)
   }
 
-  /** Synthesises text of any length, joining chunks with short pauses. */
-  async synthesize(text: string, lang: string, style: Style, { totalStep = 8, speed = 1.05, silence = 0.3 } = {}) {
-    const maxLen = lang === "ko" || lang === "ja" ? 120 : 300
+  /**
+   * Synthesises a sequence of text segments, each in its own language, joining
+   * them (and the chunks of long segments) with short pauses.
+   */
+  async synthesize(
+    segments: { text: string; lang: string }[],
+    style: Style,
+    { totalStep = 8, speed = 1.05, silence = 0.3 } = {}
+  ) {
     const parts: Float32Array[] = []
     const gap = new Float32Array(Math.floor(silence * this.sampleRate))
-    for (const chunk of chunkText(text, maxLen)) {
-      if (parts.length) parts.push(gap)
-      parts.push(await this.infer(chunk, lang, style, totalStep, speed))
+    for (const { text, lang } of segments) {
+      const maxLen = lang === "ko" || lang === "ja" ? 120 : 300
+      for (const chunk of chunkText(text, maxLen)) {
+        if (parts.length) parts.push(gap)
+        parts.push(await this.infer(chunk, lang, style, totalStep, speed))
+      }
     }
     const out = new Float32Array(parts.reduce((n, p) => n + p.length, 0))
     let offset = 0
@@ -199,10 +208,10 @@ export class SupertonicTTS {
   }
 }
 
-export async function loadVoiceStyle(ort: OrtModule, url: string): Promise<Style> {
-  const res = await fetch(url)
-  if (!res.ok) throw new Error(`Voice style request failed (${res.status})`)
-  const json = (await res.json()) as VoiceStyleJson
+export type VoiceStyle = Style
+
+/** Builds a voice style tensor pair from one of the `voice_styles/*.json` files. */
+export function parseVoiceStyle(ort: OrtModule, json: VoiceStyleJson): VoiceStyle {
   const ttl = Float32Array.from(json.style_ttl.data.flat(Infinity) as number[])
   const dp = Float32Array.from(json.style_dp.data.flat(Infinity) as number[])
   return {
@@ -211,27 +220,22 @@ export async function loadVoiceStyle(ort: OrtModule, url: string): Promise<Style
   }
 }
 
-async function fetchJson<T>(url: string): Promise<T> {
-  const res = await fetch(url)
-  if (!res.ok) throw new Error(`Request for ${url} failed (${res.status})`)
-  return (await res.json()) as T
-}
+export type { VoiceStyleJson }
 
-export async function loadSupertonic(
+export const MODEL_NAMES = ["duration_predictor", "text_encoder", "vector_estimator", "vocoder"] as const
+export type ModelName = (typeof MODEL_NAMES)[number]
+
+/** Creates the four inference sessions from downloaded model bytes. */
+export async function createSupertonic(
   ort: OrtModule,
-  onnxDir: string,
-  options: Ort.InferenceSession.SessionOptions,
-  onProgress?: (loaded: number, total: number) => void
+  cfgs: SupertonicConfig,
+  indexer: number[],
+  models: Record<ModelName, Uint8Array>,
+  options: Ort.InferenceSession.SessionOptions
 ) {
-  const cfgs = await fetchJson<SupertonicConfig>(`${onnxDir}/tts.json`)
-  const indexer = await fetchJson<number[]>(`${onnxDir}/unicode_indexer.json`)
-  const names = ["duration_predictor", "text_encoder", "vector_estimator", "vocoder"]
+  // One at a time, as in the reference, to keep peak memory down.
   const sessions: Ort.InferenceSession[] = []
-  for (const [i, name] of names.entries()) {
-    onProgress?.(i, names.length)
-    sessions.push(await ort.InferenceSession.create(`${onnxDir}/${name}.onnx`, options))
-  }
-  onProgress?.(names.length, names.length)
+  for (const name of MODEL_NAMES) sessions.push(await ort.InferenceSession.create(models[name], options))
   const [dp, textEnc, vectorEst, vocoder] = sessions
   return new SupertonicTTS(ort, cfgs, indexer, { dp, textEnc, vectorEst, vocoder })
 }

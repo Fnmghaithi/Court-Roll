@@ -1,51 +1,88 @@
-import type { loadVoiceStyle, SupertonicTTS } from "./supertonic"
+import type { CourtCase } from "@/data/cases"
 
-type VoiceStyle = Awaited<ReturnType<typeof loadVoiceStyle>>
-type Backend = "webgpu" | "wasm"
-
-interface Engine {
-  tts: SupertonicTTS
-  style: VoiceStyle
-  backend: Backend
-}
+import { buildAnnouncement, testAnnouncement, type AnnouncementLanguage, type SpeechSegment } from "./announcement"
+import { readModelFile, readModelJson } from "./model-files"
+import type { ModelName, SupertonicConfig, SupertonicTTS, VoiceStyle, VoiceStyleJson } from "./supertonic"
 
 /*
- * Loads Supertonic 3 once, on demand, and plays announcements in the browser.
- * The model runs on this device (WebGPU when available, otherwise WebAssembly);
- * only the model files are downloaded, the first time.
- *
- * Model files default to the archived Supertonic 3 snapshot on Hugging Face.
- * To self-host them (recommended for the court network), download that snapshot
- * and set VITE_SUPERTONIC_URL to the folder holding `onnx/` and `voice_styles/`.
+ * Plays court announcements with Supertonic 3, running in the browser on this
+ * device (WebGPU when available, otherwise WebAssembly). Nothing is sent to a
+ * speech service; only the model files are downloaded, once.
  */
-const MODEL_URL =
-  import.meta.env.VITE_SUPERTONIC_URL ??
-  "https://huggingface.co/supertone-oss-archive/supertonic-3/resolve/aafc6e32416a594460b32413efc49d7fe4ce6d46"
-const VOICE = import.meta.env.VITE_SUPERTONIC_VOICE ?? "M1"
-const LANG = "ar"
-const ENABLED_KEY = "court-roll:announcements"
+
+export type Backend = "webgpu" | "wasm"
+
+export const VOICES = ["M1", "M2", "M3", "M4", "M5", "F1", "F2", "F3", "F4", "F5"] as const
+export type Voice = (typeof VOICES)[number]
+
+/** Denoising steps: more is clearer but slower. */
+export const QUALITY_PRESETS = [
+  { steps: 4, label: "سريع" },
+  { steps: 8, label: "متوازن" },
+  { steps: 16, label: "أعلى جودة" },
+] as const
+
+export interface VoiceSettings {
+  lang: AnnouncementLanguage
+  voice: Voice
+  /** Speaking rate; 1 is the model's natural pace. */
+  speed: number
+  steps: number
+}
+
+export const DEFAULT_VOICE_SETTINGS: VoiceSettings = { lang: "ar", voice: "M1", speed: 1.05, steps: 8 }
+export const SPEED_RANGE = { min: 0.8, max: 1.5, step: 0.05 }
 
 export type AnnouncerStatus =
   | { state: "idle" }
-  | { state: "loading"; loaded: number; total: number }
+  | { state: "loading"; file: number; files: number; fraction: number }
   | { state: "ready"; backend: Backend }
   | { state: "speaking"; backend: Backend }
   | { state: "error"; message: string }
 
 interface AnnouncerSnapshot {
   enabled: boolean
+  settings: VoiceSettings
   status: AnnouncerStatus
 }
 
-function readEnabled() {
+const ENABLED_KEY = "court-roll:announcements"
+const SETTINGS_KEY = "court-roll:voice-settings"
+
+function readStored<T>(key: string, fallback: T, parse: (raw: string) => T): T {
   try {
-    return localStorage.getItem(ENABLED_KEY) !== "off"
+    const raw = localStorage.getItem(key)
+    return raw === null ? fallback : parse(raw)
   } catch {
-    return true
+    return fallback
   }
 }
 
-let snapshot: AnnouncerSnapshot = { enabled: readEnabled(), status: { state: "idle" } }
+function store(key: string, value: string) {
+  try {
+    localStorage.setItem(key, value)
+  } catch {
+    // Not remembered across reloads without storage.
+  }
+}
+
+function readSettings(): VoiceSettings {
+  return readStored(SETTINGS_KEY, DEFAULT_VOICE_SETTINGS, (raw) => {
+    const s = { ...DEFAULT_VOICE_SETTINGS, ...(JSON.parse(raw) as Partial<VoiceSettings>) }
+    return {
+      lang: s.lang === "en" ? "en" : "ar",
+      voice: VOICES.includes(s.voice) ? s.voice : DEFAULT_VOICE_SETTINGS.voice,
+      speed: Math.min(SPEED_RANGE.max, Math.max(SPEED_RANGE.min, Number(s.speed) || DEFAULT_VOICE_SETTINGS.speed)),
+      steps: QUALITY_PRESETS.some((q) => q.steps === s.steps) ? s.steps : DEFAULT_VOICE_SETTINGS.steps,
+    }
+  })
+}
+
+let snapshot: AnnouncerSnapshot = {
+  enabled: readStored(ENABLED_KEY, true, (raw) => raw !== "off"),
+  settings: readSettings(),
+  status: { state: "idle" },
+}
 const listeners = new Set<() => void>()
 
 function update(next: Partial<AnnouncerSnapshot>) {
@@ -62,44 +99,83 @@ export function getAnnouncerSnapshot() {
   return snapshot
 }
 
+// ---------------------------------------------------------------------------
+// Model loading
+
+interface Engine {
+  ort: typeof import("onnxruntime-web")
+  tts: SupertonicTTS
+  backend: Backend
+}
+
 let engine: Promise<Engine> | null = null
+const voiceStyles = new Map<Voice, Promise<VoiceStyle>>()
 
 /** Starts loading the model in the background. Safe to call repeatedly. */
 export function preloadAnnouncer() {
   if (!engine) {
-    engine = loadEngine().catch((error: unknown) => {
+    engine = loadEngine()
+    engine.catch((error: unknown) => {
       engine = null
-      const message = error instanceof Error ? error.message : String(error)
-      update({ status: { state: "error", message } })
-      throw error
+      update({ status: { state: "error", message: errorMessage(error) } })
     })
-    engine.catch(() => {})
   }
   return engine
 }
 
+function errorMessage(error: unknown) {
+  // fetch() rejects with a TypeError when the server can't be reached or blocks the request.
+  if (error instanceof TypeError) return "تعذّر الاتصال بمصدر ملفات النموذج"
+  return error instanceof Error ? error.message : String(error)
+}
+
 async function loadEngine(): Promise<Engine> {
-  update({ status: { state: "loading", loaded: 0, total: 4 } })
+  const { MODEL_NAMES, createSupertonic } = await import("./supertonic")
+  const files = MODEL_NAMES.length
+  update({ status: { state: "loading", file: 1, files, fraction: 0 } })
+
   // Loaded only when announcements are used, so the audience board stays light.
   const ort = await import("onnxruntime-web/webgpu")
-  const { loadSupertonic, loadVoiceStyle } = await import("./supertonic")
-  const onProgress = (loaded: number, total: number) =>
-    update({ status: { state: "loading", loaded, total } })
-  const onnxDir = `${MODEL_URL}/onnx`
+  const cfgs = await readModelJson<SupertonicConfig>("onnx/tts.json")
+  const indexer = await readModelJson<number[]>("onnx/unicode_indexer.json")
+
+  const models = {} as Record<ModelName, Uint8Array>
+  for (const [i, name] of MODEL_NAMES.entries()) {
+    models[name] = await readModelFile(`onnx/${name}.onnx`, (fraction) =>
+      update({ status: { state: "loading", file: i + 1, files, fraction } })
+    )
+  }
 
   let backend: Backend = "webgpu"
   let tts: SupertonicTTS
   try {
     if (!("gpu" in navigator)) throw new Error("WebGPU unavailable")
-    tts = await loadSupertonic(ort, onnxDir, { executionProviders: ["webgpu"], graphOptimizationLevel: "all" }, onProgress)
+    tts = await createSupertonic(ort, cfgs, indexer, models, { executionProviders: ["webgpu"], graphOptimizationLevel: "all" })
   } catch {
     backend = "wasm"
-    tts = await loadSupertonic(ort, onnxDir, { executionProviders: ["wasm"], graphOptimizationLevel: "all" }, onProgress)
+    tts = await createSupertonic(ort, cfgs, indexer, models, { executionProviders: ["wasm"], graphOptimizationLevel: "all" })
   }
-  const style = await loadVoiceStyle(ort, `${MODEL_URL}/voice_styles/${VOICE}.json`)
+
+  const loaded = { ort, tts, backend }
+  await loadVoiceStyle(loaded, snapshot.settings.voice)
   update({ status: { state: "ready", backend } })
-  return { tts, style, backend }
+  return loaded
 }
+
+function loadVoiceStyle({ ort }: Engine, voice: Voice) {
+  let style = voiceStyles.get(voice)
+  if (!style) {
+    style = import("./supertonic").then(async ({ parseVoiceStyle }) =>
+      parseVoiceStyle(ort, await readModelJson<VoiceStyleJson>(`voice_styles/${voice}.json`))
+    )
+    style.catch(() => voiceStyles.delete(voice))
+    voiceStyles.set(voice, style)
+  }
+  return style
+}
+
+// ---------------------------------------------------------------------------
+// Playback
 
 let audioContext: AudioContext | null = null
 let currentSource: AudioBufferSourceNode | null = null
@@ -115,20 +191,27 @@ function unlockAudio() {
   return audioContext
 }
 
-/** Speaks `text` in Arabic, replacing anything already playing. */
-export function announce(text: string) {
-  if (!snapshot.enabled) return
-  const ctx = unlockAudio()
-  const id = ++requestId
+function stopPlayback() {
+  requestId++
   currentSource?.stop()
+  currentSource = null
+}
+
+/** Speaks the segments with the current settings, replacing anything already playing. */
+function speak(segments: SpeechSegment[]) {
+  const ctx = unlockAudio()
+  stopPlayback()
+  const id = requestId
+  const settings = snapshot.settings
 
   preloadAnnouncer()
-    .then(async ({ tts, style, backend }) => {
+    .then(async (loaded) => {
       if (id !== requestId) return
-      update({ status: { state: "speaking", backend } })
-      const pcm = await tts.synthesize(text, LANG, style)
+      update({ status: { state: "speaking", backend: loaded.backend } })
+      const style = await loadVoiceStyle(loaded, settings.voice)
+      const pcm = await loaded.tts.synthesize(segments, style, { totalStep: settings.steps, speed: settings.speed })
       if (id !== requestId) return
-      const buffer = ctx.createBuffer(1, pcm.length, tts.sampleRate)
+      const buffer = ctx.createBuffer(1, pcm.length, loaded.tts.sampleRate)
       buffer.copyToChannel(pcm, 0)
       const source = ctx.createBufferSource()
       source.buffer = buffer
@@ -136,7 +219,7 @@ export function announce(text: string) {
       source.onended = () => {
         if (currentSource === source) {
           currentSource = null
-          update({ status: { state: "ready", backend } })
+          update({ status: { state: "ready", backend: loaded.backend } })
         }
       }
       currentSource = source
@@ -144,21 +227,36 @@ export function announce(text: string) {
     })
     .catch((error: unknown) => {
       if (id !== requestId) return
-      const message = error instanceof Error ? error.message : String(error)
-      update({ status: { state: "error", message } })
+      update({ status: { state: "error", message: errorMessage(error) } })
     })
 }
 
+/** Announces the case now being heard, if announcements are on. */
+export function announceCase(courtCase: CourtCase) {
+  if (snapshot.enabled) speak(buildAnnouncement(courtCase, snapshot.settings.lang))
+}
+
+/** Plays a short test sentence with the current settings. */
+export function announceTest() {
+  speak(testAnnouncement(snapshot.settings.lang))
+}
+
 export function setAnnouncementsEnabled(enabled: boolean) {
-  try {
-    localStorage.setItem(ENABLED_KEY, enabled ? "on" : "off")
-  } catch {
-    // Not remembered across reloads without storage.
-  }
-  if (!enabled) {
-    requestId++
-    currentSource?.stop()
-    currentSource = null
-  }
+  store(ENABLED_KEY, enabled ? "on" : "off")
+  if (!enabled) stopPlayback()
   update({ enabled })
+}
+
+export function updateVoiceSettings(next: Partial<VoiceSettings>) {
+  const settings = { ...snapshot.settings, ...next }
+  store(SETTINGS_KEY, JSON.stringify(settings))
+  update({ settings })
+}
+
+/** Clears a failed load so the next announcement tries again. */
+export function retryAnnouncer() {
+  if (snapshot.status.state === "error") {
+    update({ status: { state: "idle" } })
+    void preloadAnnouncer()
+  }
 }
