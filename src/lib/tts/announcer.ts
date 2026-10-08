@@ -247,17 +247,18 @@ function getAudioContext() {
   return audioContext
 }
 
-function stopPlayback() {
+function stopPlayback({ speech = true } = {}) {
   requestId++
   currentSource?.stop()
   currentSource = null
-  stopWebSpeech()
+  if (speech) stopWebSpeech()
 }
 
 /** Speaks the segments with the current settings, replacing anything already playing. */
 function speak(segments: SpeechSegment[]) {
   lastSegments = segments
-  stopPlayback()
+  // The browser voice stops the previous sentence itself, pausing briefly to avoid a Chrome bug.
+  stopPlayback({ speech: TTS_ENGINE !== "webspeech" })
   const id = requestId
 
   if (TTS_ENGINE === "webspeech") {

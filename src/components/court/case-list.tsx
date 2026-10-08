@@ -35,16 +35,12 @@ function formatCaseCount(count: number) {
   return `${count} قضية`
 }
 
-// Shared column templates so the header lines up with the rows.
+// Shared column template so the header lines up with the rows.
 const COLUMNS =
   "md:grid md:grid-cols-[2.5rem_minmax(0,1fr)_minmax(0,1.5fr)_minmax(0,1.5fr)_10rem] md:items-center md:gap-6"
-const COLUMNS_WITH_PROSECUTION =
-  "md:grid md:grid-cols-[2.5rem_minmax(0,1fr)_minmax(0,0.9fr)_minmax(0,1.5fr)_minmax(0,1.5fr)_10rem] md:items-center md:gap-6"
 
 export function CaseList({ cases, title = "جدول قضايا اليوم", onStatusChange, onCycle, className }: CaseListProps) {
   const isClerk = Boolean(onStatusChange)
-  const withProsecution = cases.some((c) => c.publicProsecutionNumber)
-  const columns = withProsecution ? COLUMNS_WITH_PROSECUTION : COLUMNS
 
   return (
     <Card className={cn("min-h-0 gap-0 overflow-hidden border-0 py-0", className)}>
@@ -53,10 +49,9 @@ export function CaseList({ cases, title = "جدول قضايا اليوم", onSt
         <span className="text-sm text-primary-foreground/70">{formatCaseCount(cases.length)}</span>
       </CardHeader>
 
-      <div className={cn("hidden bg-primary px-6 py-3 text-sm font-medium text-primary-foreground/85", columns)}>
+      <div className={cn("hidden bg-primary px-6 py-3 text-sm font-medium text-primary-foreground/85", COLUMNS)}>
         <span>م</span>
         <span>رقم الدعوى</span>
-        {withProsecution && <span>رقم الإدعاء العام</span>}
         <span>{PARTY_LABELS.plaintiff}</span>
         <span>{PARTY_LABELS.defendant}</span>
         <span>الحالة</span>
@@ -70,8 +65,6 @@ export function CaseList({ cases, title = "جدول قضايا اليوم", onSt
               key={courtCase.caseId}
               index={index}
               courtCase={courtCase}
-              columns={columns}
-              withProsecution={withProsecution}
               onStatusChange={onStatusChange}
             />
           ))}
@@ -84,17 +77,15 @@ export function CaseList({ cases, title = "جدول قضايا اليوم", onSt
 interface CaseRowProps {
   index: number
   courtCase: CourtCase
-  columns: string
-  withProsecution: boolean
   onStatusChange?: (courtCase: CourtCase, status: CaseStatus) => void
 }
 
-function CaseRow({ index, courtCase, columns, withProsecution, onStatusChange }: CaseRowProps) {
+function CaseRow({ index, courtCase, onStatusChange }: CaseRowProps) {
   const status = courtCase.caseStatus
   const finished = isFinished(status)
   const rowClassName = cn(
     "relative grid w-full grid-cols-[auto_minmax(0,1fr)_auto] gap-x-4 gap-y-1 px-6 py-4 text-start",
-    columns,
+    COLUMNS,
     status === "in-progress" ? "bg-row-current" : index % 2 === 1 ? "bg-row-alt" : "bg-card"
   )
 
@@ -108,21 +99,11 @@ function CaseRow({ index, courtCase, columns, withProsecution, onStatusChange }:
         <span dir="ltr" className="self-start font-mono font-semibold tracking-tight md:text-lg">
           {reverseCaseNumber(courtCase.caseNumber)}
         </span>
-        {courtCase.publicProsecutionNumber && (
-          <span className="text-xs text-muted-foreground md:hidden">
-            الإدعاء العام: <span dir="ltr">{reverseCaseNumber(courtCase.publicProsecutionNumber)}</span>
-          </span>
-        )}
       </span>
       <span className="flex items-center gap-1.5 md:order-last">
         <StatusBadge status={status} />
         {onStatusChange && <ChevronDown aria-hidden className="size-4 text-muted-foreground" />}
       </span>
-      {withProsecution && (
-        <span dir="ltr" className={cn("hidden self-center justify-self-start font-mono md:block md:text-lg", finished && "opacity-50")}>
-          {reverseCaseNumber(courtCase.publicProsecutionNumber)}
-        </span>
-      )}
       <span className={cn("col-span-3 col-start-2 md:col-span-1 md:col-start-auto md:text-lg", finished && "opacity-50")}>
         <span className="sr-only">{PARTY_LABELS.plaintiff}: </span>
         {courtCase.plaintiff}
@@ -168,12 +149,16 @@ function CaseRow({ index, courtCase, columns, withProsecution, onStatusChange }:
             حالة القضية <span dir="ltr">{reverseCaseNumber(courtCase.caseNumber)}</span>
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
-          <DropdownMenuRadioGroup
-            value={status}
-            onValueChange={(value) => value !== status && onStatusChange(courtCase, value as CaseStatus)}
-          >
+          {/* onSelect fires even for the current status, so choosing تنظر الآن again
+              re-sends it and the hall hears the case called again. */}
+          <DropdownMenuRadioGroup value={status}>
             {CASE_STATUSES.map((option) => (
-              <DropdownMenuRadioItem key={option} value={option} className="text-base">
+              <DropdownMenuRadioItem
+                key={option}
+                value={option}
+                className="text-base"
+                onSelect={() => onStatusChange(courtCase, option)}
+              >
                 {STATUS_LABELS[option]}
               </DropdownMenuRadioItem>
             ))}

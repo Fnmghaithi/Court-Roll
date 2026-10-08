@@ -37,12 +37,23 @@ export function loadWebSpeechVoice(): Promise<SpeechSynthesisVoice | null> {
 }
 
 export function stopWebSpeech() {
-  if (webSpeechSupported()) speechSynthesis.cancel()
+  if (!webSpeechSupported()) return
+  if (pendingStart) clearTimeout(pendingStart)
+  pendingStart = null
+  speechSynthesis.cancel()
 }
+
+// The utterance being spoken. Keeping a reference stops Chrome from
+// garbage-collecting it mid-sentence, which silently ends speech and its events.
+let current: SpeechSynthesisUtterance | null = null
+let pendingStart: ReturnType<typeof setTimeout> | null = null
 
 /** Speaks Arabic text, replacing anything already being spoken. */
 export function speakWebSpeech(text: string, events: { onEnd: () => void; onError: (error: string) => void }) {
+  if (pendingStart) clearTimeout(pendingStart)
+  const busy = speechSynthesis.speaking || speechSynthesis.pending
   speechSynthesis.cancel()
+
   voice ??= pickVoice()
   const utterance = new SpeechSynthesisUtterance(text)
   if (voice) {
@@ -54,10 +65,25 @@ export function speakWebSpeech(text: string, events: { onEnd: () => void; onErro
   utterance.rate = WEB_SPEECH.rate
   utterance.pitch = WEB_SPEECH.pitch
   utterance.volume = WEB_SPEECH.volume
-  utterance.onend = events.onEnd
+  utterance.onend = () => {
+    if (current === utterance) current = null
+    events.onEnd()
+  }
   utterance.onerror = (e) => {
+    if (current === utterance) current = null
     // "interrupted"/"canceled" happen when a newer announcement replaces this one.
     if (e.error !== "interrupted" && e.error !== "canceled") events.onError(e.error)
   }
-  speechSynthesis.speak(utterance)
+
+  const start = () => {
+    pendingStart = null
+    current = utterance
+    // Chrome can get stuck in a paused state that silently swallows new speech.
+    speechSynthesis.resume()
+    speechSynthesis.speak(utterance)
+  }
+  // Speaking right after cancel() is sometimes dropped by Chrome and Edge,
+  // so give the engine a moment when something was playing.
+  if (busy) pendingStart = setTimeout(start, 150)
+  else start()
 }

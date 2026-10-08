@@ -48,7 +48,7 @@ The endpoints, payloads and field names are unchanged from the original pages (s
 - `PUT /api/session/sessions/{sessionId}/cases/{caseId}/status` with `{ status, modifiedBy: "أمين السر" }`
 - SignalR `/sessionHub`: `JoinSession(sessionId)` and the `CaseStatusChanged(caseId, newStatus, modifiedBy)` event
 
-Statuses are the backend's values: `in-review` (في الإنتظار), `upcoming-next` (الجلسة القادمة), `in-progress` (تنظر الآن), `discussed` (تمت المناقشة), `ruling-issued` (تم الحكم). Case numbers are shown reversed, as before (`210/7103/2024` → `2024/7103/210`).
+Statuses are the backend's values: `in-review` (في الإنتظار), `upcoming-next` (الجلسة القادمة), `in-progress` (تنظر الآن), `discussed` (تمت المناقشة), `ruling-issued` (تم الحكم). Case numbers are shown reversed, as before (`210/7103/2024` → `2024/7103/210`). The public prosecution number (رقم الإدعاء العام) is not shown; the case number identifies every case.
 
 ## What each page does
 
@@ -59,7 +59,7 @@ Statuses are the backend's values: `in-review` (في الإنتظار), `upcomin
 
 Messages appear as toasts instead of browser alerts.
 
-**Clerk panel.** With several sessions on a date it first shows them with counts per status. Clicking a case opens a menu of the five statuses; the change is saved with the PUT request and confirmed with a toast. Changes from other clerk panels arrive live. Buttons: back to the dashboard, the session list, and copy the audience link.
+**Clerk panel.** With several sessions on a date it first shows them with counts per status. Clicking a case opens a menu of the five statuses; the change is saved with the PUT request and confirmed with a toast. Choosing تنظر الآن again on the case being heard sends it again, so the hall hears the case called again. Changes from other clerk panels arrive live. Buttons: back to the dashboard, the session list, and copy the audience link.
 
 **Hearing schedule.** The case being heard and the next case in large cards, the panel members (أعضاء الهيئة), and the full list scrolling continuously. Without parameters it goes to the dashboard; with several sessions on a date it shows the session list first. It joins all of the day's sessions, so when a case in another session becomes تنظر الآن it switches to that session and announces the case. After each full pass of the list it moves to the next session, but it stays on (or moves to) a session whose case is being heard. A tools menu (أدوات) slides down when the mouse reaches the top-right corner: dashboard, session list and voice settings.
 
