@@ -25,10 +25,11 @@ export default defineConfig(({ mode }) => {
     },
     server: {
       open: '/admin-dashboard.html',
+      // secure: false accepts the ASP.NET development HTTPS certificate (development only).
       proxy: {
-        '/api': { target: backend, changeOrigin: true },
-        '/sessionHub': { target: backend, changeOrigin: true, ws: true },
-        '/js': { target: backend, changeOrigin: true },
+        '/api': { target: backend, changeOrigin: true, secure: false },
+        '/sessionHub': { target: backend, changeOrigin: true, ws: true, secure: false },
+        '/js': { target: backend, changeOrigin: true, secure: false },
       },
     },
     build: {
