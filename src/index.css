@@ -99,6 +99,23 @@
   background-position: center;
 }
 
+/* Shows briefly, then fades away and stops taking clicks. */
+@keyframes hide-after {
+  0%,
+  85% {
+    opacity: 1;
+    visibility: visible;
+  }
+  100% {
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+
+@utility animate-hide-after {
+  animation: hide-after 3.5s ease forwards;
+}
+
 /* Seamless vertical marquee: the track holds two copies of the list and moves up by one copy. */
 @keyframes marquee-y {
   from {

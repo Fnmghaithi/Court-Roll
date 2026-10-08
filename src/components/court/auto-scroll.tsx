@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react"
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react"
 
 import { usePrefersReducedMotion } from "@/hooks/use-prefers-reduced-motion"
 import { cn } from "@/lib/utils"
@@ -9,6 +9,12 @@ interface AutoScrollProps {
   speed?: number
   /** When false, the content stays still and scrolls by hand instead. */
   enabled?: boolean
+  /**
+   * Called after each full pass of the loop, or every `dwellMs` when the
+   * content fits and doesn't move.
+   */
+  onCycle?: () => void
+  dwellMs?: number
   className?: string
 }
 
@@ -16,7 +22,7 @@ interface AutoScrollProps {
  * Continuously scrolls its content upward in a seamless loop, but only when the
  * content is taller than the space available. Short lists stay still.
  */
-export function AutoScroll({ children, speed = 32, enabled = true, className }: AutoScrollProps) {
+export function AutoScroll({ children, speed = 32, enabled = true, onCycle, dwellMs = 30_000, className }: AutoScrollProps) {
   const viewportRef = useRef<HTMLDivElement>(null)
   const contentRef = useRef<HTMLDivElement>(null)
   const [overflowing, setOverflowing] = useState(false)
@@ -42,6 +48,17 @@ export function AutoScroll({ children, speed = 32, enabled = true, className }: 
   }, [speed])
 
   const animate = enabled && overflowing && !reducedMotion
+  const cycle = useRef(onCycle)
+  useLayoutEffect(() => {
+    cycle.current = onCycle
+  })
+
+  // When nothing scrolls, still report a "pass" now and then.
+  useEffect(() => {
+    if (!enabled || animate || !onCycle) return
+    const id = setInterval(() => cycle.current?.(), dwellMs)
+    return () => clearInterval(id)
+  }, [enabled, animate, dwellMs, onCycle])
 
   return (
     <div
@@ -56,6 +73,7 @@ export function AutoScroll({ children, speed = 32, enabled = true, className }: 
     >
       <div
         className={cn(animate && "animate-marquee-y hover:[animation-play-state:paused]")}
+        onAnimationIteration={() => cycle.current?.()}
         style={{ "--marquee-duration": `${duration}s` } as CSSProperties}
       >
         <div ref={contentRef} className={cn(animate && "pb-8")}>

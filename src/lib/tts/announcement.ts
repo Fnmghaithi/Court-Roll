@@ -1,4 +1,56 @@
-import type { CourtCase } from "@/data/cases"
+/** The parts of a case an announcement needs. */
+export interface AnnouncedCase {
+  caseNumber: string
+  plaintiff: string
+  defendant: string
+}
+
+declare global {
+  interface Window {
+    /** Number-to-words from the backend's /js/tafqit.min.js. */
+    tafqit?: (n: number) => string
+  }
+}
+
+/** The two ways of wording a call. */
+export type Wording = "classic" | "tashkeel"
+
+export const WORDINGS: { value: Wording; label: string }[] = [
+  { value: "classic", label: "الصيغة الحالية (tafqit.min.js)" },
+  { value: "tashkeel", label: "الصيغة المشكولة" },
+]
+
+/**
+ * The original hearing schedule's sentence, unchanged:
+ * "القضية رقم <n>، على <n>، على <n>، تُنْظَرُ الْآنَ", with each part of the
+ * case number spelled out by the backend's tafqit.min.js.
+ */
+export function classicAnnouncement(caseNumber: string) {
+  const convert = (num: number) => {
+    if (typeof window.tafqit === "function") {
+      try {
+        return window.tafqit(num)
+      } catch (e) {
+        console.error("Tafqit conversion failed:", e)
+        return num.toString()
+      }
+    }
+    console.warn("Tafqit library not available")
+    return num.toString()
+  }
+
+  if (!caseNumber) return ""
+  const parts = caseNumber.replace(/\*/g, "").trim().split("/")
+  let result = "القضية رقم "
+  for (let i = 0; i < parts.length; i++) {
+    const num = parseInt(parts[i])
+    if (!isNaN(num)) {
+      result += convert(num)
+      if (i < parts.length - 1) result += "، على "
+    }
+  }
+  return result + "، تُنْظَرُ الْآنَ"
+}
 
 // Fully vowelled (tashkeel) number words, in the oblique pausal form announcers
 // use after "رقم" and "لسنة". Final letters carry no case ending (waqf).
@@ -136,7 +188,7 @@ export const ANNOUNCEMENT_LANGUAGES: { value: AnnouncementLanguage; label: strin
  * words are read in English.
  */
 export function buildAnnouncement(
-  courtCase: CourtCase,
+  courtCase: AnnouncedCase,
   lang: AnnouncementLanguage = "ar",
   mode: CallMode = "both"
 ): SpeechSegment[] {

@@ -1,21 +1,26 @@
-import type { CourtCase } from "@/data/cases"
-
 import {
   buildAnnouncement,
+  classicAnnouncement,
   TASHKEEL,
   testAnnouncement,
+  type AnnouncedCase,
   type AnnouncementLanguage,
   type CallMode,
   type SpeechSegment,
+  type Wording,
 } from "./announcement"
+import { TTS_ENGINE } from "./config"
 import { readModelFile, readModelJson } from "./model-files"
 import type { ModelName, SupertonicConfig, SupertonicTTS, VoiceStyle, VoiceStyleJson } from "./supertonic"
+import { loadWebSpeechVoice, speakWebSpeech, stopWebSpeech } from "./webspeech"
 
 /*
- * Plays court announcements with Supertonic 3, running in the browser on this
- * device (WebGPU when available, otherwise WebAssembly). Nothing is sent to a
- * speech service; only the model files are downloaded, once.
+ * Announces cases on the hearing schedule with the engine chosen in config.ts:
+ * the browser's voice (Microsoft Naayf), or Supertonic 3 running on this
+ * device. Both follow the same wording settings.
  */
+
+export { TTS_ENGINE }
 
 export type Backend = "webgpu" | "wasm"
 
@@ -30,23 +35,37 @@ export const QUALITY_PRESETS = [
 ] as const
 
 export interface VoiceSettings {
-  lang: AnnouncementLanguage
-  /** Whether a call reads the case number, the parties, or both. */
+  /** The original sentence with tafqit.min.js, or the vowelled wording. */
+  wording: Wording
+  /** Vowelled wording: whether a call reads the case number, the parties, or both. */
   mode: CallMode
+  /** Supertonic, vowelled wording: Arabic, or English around the Arabic names. */
+  lang: AnnouncementLanguage
+  /** Supertonic voice. */
   voice: Voice
-  /** Speaking rate; 1 is the model's natural pace. */
+  /** Supertonic speaking rate; 1 is the model's natural pace. */
   speed: number
+  /** Supertonic quality (denoising steps). */
   steps: number
 }
 
-export const DEFAULT_VOICE_SETTINGS: VoiceSettings = { lang: "ar", mode: "both", voice: "M1", speed: 1.05, steps: 8 }
+export const DEFAULT_VOICE_SETTINGS: VoiceSettings = {
+  wording: "classic",
+  mode: "both",
+  lang: "ar",
+  voice: "M1",
+  speed: 1.05,
+  steps: 8,
+}
 export const SPEED_RANGE = { min: 0.8, max: 1.5, step: 0.05 }
 
 export type AnnouncerStatus =
   | { state: "idle" }
   | { state: "loading"; file: number; files: number; fraction: number }
-  | { state: "ready"; backend: Backend }
-  | { state: "speaking"; backend: Backend }
+  | { state: "ready"; detail: string }
+  | { state: "speaking"; detail: string }
+  /** The browser refused to play sound until someone interacts with the page. */
+  | { state: "blocked" }
   | { state: "error"; message: string }
 
 interface AnnouncerSnapshot {
@@ -79,8 +98,9 @@ function readSettings(): VoiceSettings {
   return readStored(SETTINGS_KEY, DEFAULT_VOICE_SETTINGS, (raw) => {
     const s = { ...DEFAULT_VOICE_SETTINGS, ...(JSON.parse(raw) as Partial<VoiceSettings>) }
     return {
-      lang: s.lang === "en" ? "en" : "ar",
+      wording: s.wording === "tashkeel" ? "tashkeel" : "classic",
       mode: s.mode === "number" || s.mode === "parties" ? s.mode : "both",
+      lang: s.lang === "en" ? "en" : "ar",
       voice: VOICES.includes(s.voice) ? s.voice : DEFAULT_VOICE_SETTINGS.voice,
       speed: Math.min(SPEED_RANGE.max, Math.max(SPEED_RANGE.min, Number(s.speed) || DEFAULT_VOICE_SETTINGS.speed)),
       steps: QUALITY_PRESETS.some((q) => q.steps === s.steps) ? s.steps : DEFAULT_VOICE_SETTINGS.steps,
@@ -109,8 +129,35 @@ export function getAnnouncerSnapshot() {
   return snapshot
 }
 
+function errorMessage(error: unknown) {
+  // fetch() rejects with a TypeError when the server can't be reached or blocks the request.
+  if (error instanceof TypeError) return "تعذّر الاتصال بمصدر ملفات النموذج"
+  return error instanceof Error ? error.message : String(error)
+}
+
 // ---------------------------------------------------------------------------
-// Model loading
+// Browser voice
+
+let webSpeechReady: Promise<string> | null = null
+
+function prepareWebSpeech() {
+  webSpeechReady ??= loadWebSpeechVoice().then(
+    (voice) => {
+      const detail = voice ? voice.name : "صوت المتصفح"
+      if (snapshot.status.state === "idle") update({ status: { state: "ready", detail } })
+      return detail
+    },
+    (error: unknown) => {
+      webSpeechReady = null
+      update({ status: { state: "error", message: errorMessage(error) } })
+      throw error
+    }
+  )
+  return webSpeechReady
+}
+
+// ---------------------------------------------------------------------------
+// Supertonic model loading
 
 interface Engine {
   ort: typeof import("onnxruntime-web")
@@ -121,8 +168,10 @@ interface Engine {
 let engine: Promise<Engine> | null = null
 const voiceStyles = new Map<Voice, Promise<VoiceStyle>>()
 
-/** Starts loading the model in the background. Safe to call repeatedly. */
-export function preloadAnnouncer() {
+const backendLabel = (backend: Backend) =>
+  backend === "webgpu" ? "Supertonic · بطاقة الرسوميات" : "Supertonic · المعالج"
+
+function prepareSupertonic() {
   if (!engine) {
     engine = loadEngine()
     engine.catch((error: unknown) => {
@@ -133,10 +182,10 @@ export function preloadAnnouncer() {
   return engine
 }
 
-function errorMessage(error: unknown) {
-  // fetch() rejects with a TypeError when the server can't be reached or blocks the request.
-  if (error instanceof TypeError) return "تعذّر الاتصال بمصدر ملفات النموذج"
-  return error instanceof Error ? error.message : String(error)
+/** Prepares the configured engine (downloads Supertonic, or finds the browser voice). Safe to call repeatedly. */
+export function preloadAnnouncer() {
+  if (TTS_ENGINE === "webspeech") prepareWebSpeech().catch(() => {})
+  else prepareSupertonic().catch(() => {})
 }
 
 async function loadEngine(): Promise<Engine> {
@@ -144,7 +193,7 @@ async function loadEngine(): Promise<Engine> {
   const files = MODEL_NAMES.length
   update({ status: { state: "loading", file: 1, files, fraction: 0 } })
 
-  // Loaded only when announcements are used, so the audience board stays light.
+  // Loaded only when Supertonic is used, so the board stays light otherwise.
   const ort = await import("onnxruntime-web/webgpu")
   const cfgs = await readModelJson<SupertonicConfig>("onnx/tts.json")
   const indexer = await readModelJson<number[]>("onnx/unicode_indexer.json")
@@ -168,7 +217,7 @@ async function loadEngine(): Promise<Engine> {
 
   const loaded = { ort, tts, backend }
   await loadVoiceStyle(loaded, snapshot.settings.voice)
-  update({ status: { state: "ready", backend } })
+  update({ status: { state: "ready", detail: backendLabel(backend) } })
   return loaded
 }
 
@@ -190,12 +239,9 @@ function loadVoiceStyle({ ort }: Engine, voice: Voice) {
 let audioContext: AudioContext | null = null
 let currentSource: AudioBufferSourceNode | null = null
 let requestId = 0
+let lastSegments: SpeechSegment[] | null = null
 
-/**
- * Must run inside the click that triggers an announcement: browsers only allow
- * sound that starts from a user action, and synthesis finishes after the click.
- */
-function unlockAudio() {
+function getAudioContext() {
   audioContext ??= new AudioContext()
   if (audioContext.state === "suspended") void audioContext.resume()
   return audioContext
@@ -205,24 +251,53 @@ function stopPlayback() {
   requestId++
   currentSource?.stop()
   currentSource = null
+  stopWebSpeech()
 }
 
 /** Speaks the segments with the current settings, replacing anything already playing. */
 function speak(segments: SpeechSegment[]) {
-  const ctx = unlockAudio()
+  lastSegments = segments
   stopPlayback()
   const id = requestId
-  const settings = snapshot.settings
 
-  preloadAnnouncer()
+  if (TTS_ENGINE === "webspeech") {
+    const text = segments.map((s) => s.text).join(" ")
+    prepareWebSpeech()
+      .then((detail) => {
+        if (id !== requestId) return
+        update({ status: { state: "speaking", detail } })
+        speakWebSpeech(text, {
+          onEnd: () => id === requestId && update({ status: { state: "ready", detail } }),
+          onError: (error) => {
+            if (id !== requestId) return
+            update({
+              status: error === "not-allowed" ? { state: "blocked" } : { state: "error", message: `خطأ في النطق: ${error}` },
+            })
+          },
+        })
+      })
+      .catch(() => {})
+    return
+  }
+
+  const ctx = getAudioContext()
+  const settings = snapshot.settings
+  prepareSupertonic()
     .then(async (loaded) => {
       if (id !== requestId) return
-      update({ status: { state: "speaking", backend: loaded.backend } })
+      const detail = backendLabel(loaded.backend)
+      update({ status: { state: "speaking", detail } })
       const style = await loadVoiceStyle(loaded, settings.voice)
       // Use tashkeel only if the model was trained with it; otherwise read the bare letters.
-      const spoken = loaded.tts.supports("\u064E") ? segments : segments.map((s) => ({ ...s, text: s.text.replace(TASHKEEL, "") }))
+      const spoken = loaded.tts.supports("َ")
+        ? segments
+        : segments.map((s) => ({ ...s, text: s.text.replace(TASHKEEL, "") }))
       const pcm = await loaded.tts.synthesize(spoken, style, { totalStep: settings.steps, speed: settings.speed })
       if (id !== requestId) return
+      if (ctx.state !== "running") {
+        update({ status: { state: "blocked" } })
+        return
+      }
       const buffer = ctx.createBuffer(1, pcm.length, loaded.tts.sampleRate)
       buffer.copyToChannel(pcm, 0)
       const source = ctx.createBufferSource()
@@ -231,7 +306,7 @@ function speak(segments: SpeechSegment[]) {
       source.onended = () => {
         if (currentSource === source) {
           currentSource = null
-          update({ status: { state: "ready", backend: loaded.backend } })
+          update({ status: { state: "ready", detail } })
         }
       }
       currentSource = source
@@ -243,14 +318,33 @@ function speak(segments: SpeechSegment[]) {
     })
 }
 
-/** Announces the case now being heard, if announcements are on. */
-export function announceCase(courtCase: CourtCase) {
-  if (snapshot.enabled) speak(buildAnnouncement(courtCase, snapshot.settings.lang, snapshot.settings.mode))
+/** The segments to speak for a case, following the wording settings. */
+export function announcementFor(courtCase: AnnouncedCase, settings = snapshot.settings): SpeechSegment[] {
+  if (settings.wording === "classic") return [{ lang: "ar", text: classicAnnouncement(courtCase.caseNumber) }]
+  // The browser voice is Arabic only, so English applies to Supertonic.
+  const lang = TTS_ENGINE === "supertonic" ? settings.lang : "ar"
+  return buildAnnouncement(courtCase, lang, settings.mode)
+}
+
+/** Announces a case now being heard, if announcements are on. */
+export function announceCase(courtCase: AnnouncedCase) {
+  if (snapshot.enabled) speak(announcementFor(courtCase))
 }
 
 /** Plays a short test sentence with the current settings. */
 export function announceTest() {
-  speak(testAnnouncement(snapshot.settings.lang))
+  speak(testAnnouncement(TTS_ENGINE === "supertonic" ? snapshot.settings.lang : "ar"))
+}
+
+/**
+ * For a click after the browser blocked sound: unlocks audio and replays the
+ * announcement that was blocked.
+ */
+export function unlockAndReplay() {
+  if (TTS_ENGINE === "supertonic") getAudioContext()
+  update({ status: { state: "idle" } })
+  if (lastSegments) speak(lastSegments)
+  else preloadAnnouncer()
 }
 
 export function setAnnouncementsEnabled(enabled: boolean) {
@@ -269,6 +363,6 @@ export function updateVoiceSettings(next: Partial<VoiceSettings>) {
 export function retryAnnouncer() {
   if (snapshot.status.state === "error") {
     update({ status: { state: "idle" } })
-    void preloadAnnouncer()
+    preloadAnnouncer()
   }
 }

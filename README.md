@@ -1,84 +1,101 @@
 # Court Roll
 
-A display board for today's court hearings. It's built for TVs outside or inside the halls, and it also works on laptops and phones. The interface is in Arabic and laid out right to left.
+The court-session pages for the ASP.NET backend, rebuilt with React, TypeScript, Vite, Tailwind CSS v4 and shadcn/ui. They are in Arabic, laid out right to left, and use the navy and gold theme. They talk to the same backend endpoints and SignalR hub as the original HTML pages, and they keep the same file names and URLs.
 
-- **Now in session**: the case being heard, shown large with a live indicator.
-- **Up next**: the first waiting case after the one in session.
-- **Today's cases**: the full list in hearing order. It scrolls on its own in a seamless loop when the list doesn't fit the screen, and it stays still when everything fits or when the viewer prefers reduced motion.
+| Page | For | Opened with |
+|---|---|---|
+| `admin-dashboard.html` | Managing sessions: month calendar, create, view, delete | no parameters |
+| `clerk-panel.html` | The clerk (أمين السر): changes case statuses | `?session=<id>` or `?court=&hall=&date=` |
+| `hearing-schedule.html` | The audience and hall TVs: live board with announcements | `?session=<id>` or `?court=&hall=&date=` |
 
-The whole UI scales with the viewport, so it reads well from a 1080p or 4K TV across a hallway.
-
-## Admin mode
-
-To manage the session, hover over the clock and click the settings button that appears beside it, or open the page with `#admin` at the end of the address (for example `http://localhost:5173/#admin`). On phones the button is hidden, so use `#admin` there. The list stops scrolling, and clicking a case opens a menu to set its status:
-
-- تنظر الآن (being heard)
-- القضية التالية (up next)
-- تمت المناقشة (pleadings finished)
-- تم الحكم (judgment given)
-- في الانتظار (waiting, to undo a change)
-
-Only one case can be being heard and one up next. Picking a new one moves the previous case back to waiting. Finished cases are dimmed on the board.
-
-`#admin` only switches the interface; it is not a login. Until there is a backend, changes are saved in that browser's local storage (or only in memory where storage is blocked). They survive a reload and update other tabs on the same machine, but TVs on other devices won't see them. Connect `fetchTodaysCases` and `setCaseStatus` in `src/data/cases.ts` to an API (behind real sign-in for admins) to share them.
-
-## Voice announcements
-
-When an admin marks a case as تنظر الآن, the board announces it, for example:
-
-> تُنظر الآن الدعوى رقم مئتين وعشرة لسنة ألفين وأربعة وعشرين. المستأنف: الشركة الوطنية المتحدة للهندسة والمقاولات. المستأنف ضده: شركة سعود بهوان للسيارات.
-
-Case numbers are read as words (number and year) using tafqit with full tashkeel, for example رَقْم مِئَتَيْن وَعَشَرَة لِسَنَة أَلْفَيْن وَأَرْبَعَة وَعِشْرِين, in the pausal form announcers use. If the voice model's character set lacks the diacritics, they are stripped automatically. Company-form abbreviations such as ش م م are left out of party names so they aren't spelled letter by letter.
-
-The speech comes from [Supertonic 3](https://github.com/supertone-oss-archive/supertonic), an open text-to-speech model that runs in the browser with ONNX Runtime Web: on the graphics card (WebGPU) when the browser supports it, otherwise on the processor (WebAssembly). Nothing is sent to a speech service. The sound plays on the device where the admin clicks.
-
-In admin mode the banner shows the voice status and has buttons to repeat the last call, open **إعدادات الصوت**, and turn announcements off. The settings, remembered per browser, are:
-
-- **Call style (طريقة النداء)**: the case number only, the parties' names only, or both.
-- **Language**: Arabic, or English (the surrounding words in English, party names still read in Arabic). Supertonic speaks 31 languages; adding another means adding its wording to `buildAnnouncement` in `src/lib/tts/announcement.ts`.
-- **Voice**: five male and five female voices.
-- **Speed**: 0.8× to 1.5×.
-- **Quality**: fast, balanced or highest (4, 8 or 16 denoising steps). Higher is clearer but takes longer before the announcement starts.
-- **تجربة الصوت** plays a test sentence with the current settings.
-
-### Where the model comes from
-
-The model files are large (several hundred MB). The engine and model load only in admin mode, and each browser keeps them in its storage after the first download.
-
-- **On this machine (recommended for the court):** run `npm run download-voice` once. It saves the files in `public/supertonic`, and the board then serves them itself and uses them automatically, with no internet needed after that. The folder is ignored by git.
-- **Otherwise** they are downloaded in the browser from the archived Supertonic 3 snapshot on Hugging Face (pinned to a revision), or from `VITE_SUPERTONIC_URL` if set at build time.
-
-Supertone has archived the project, so keeping a local copy also protects the board if the archive moves. The model is licensed under OpenRAIL-M; the inference code ported in `src/lib/tts/supertonic.ts` is MIT.
-
-## Stack
-
-React, TypeScript, Vite, Tailwind CSS v4 and shadcn/ui (Card, Badge, Separator), with lucide icons, IBM Plex Sans Arabic for text and Geist Mono for case numbers and the clock.
-
-## Running
+## Running in development
 
 Needs Node.js 20.19+ or 22.12+ (`.nvmrc` pins 22). On older Node, npm skips the build tool's native package and `npm run dev` fails with "Cannot find native binding".
 
 ```bash
 npm install
-npm run dev      # development server
-npm run build    # production build in dist/
-npm run preview  # serve the build
+npm run mock     # terminal 1: stand-in backend on http://localhost:5080
+npm run dev      # terminal 2: http://localhost:5173/admin-dashboard.html
 ```
 
-For a TV, open the page in the screen's browser (or a kiosk-mode browser) and go fullscreen.
+The dev server forwards `/api`, `/sessionHub` and `/js` to the backend. It uses the mock by default; to use the real ASP.NET backend instead, start it and run:
 
-## Data
+```bash
+BACKEND_URL=https://localhost:7001 npm run dev
+```
 
-The cases live in `src/data/cases.ts`. They are a real sample taken from the hearing roll of 27/01/2026 for the Appellate Circuit of the Investment and Commercial Court in Muscat, hall 6: 129 cases, 35 reserved for judgment and 94 for pleading, in hearing order.
+### The mock backend
 
-Each case has:
+`scripts/mock/server.mjs` implements every endpoint the pages use, a SignalR hub at `/sessionHub` (the JSON protocol, so the official client connects to it), and a stand-in `/js/tafqit.min.js`. It starts with today's two sessions in hall 6 of the investment court, built from the real 27/01/2026 roll (35 cases reserved for judgment and 94 for pleading), and a few sessions on other days. Its investment-court panel 2 returns 404, to show the "no cases" path. Data is kept in memory and resets on restart.
 
-- `caseNumber`, for example `210/7103/2024`
-- `plaintiff`, the appellant (المستأنف)
-- `defendant`, the appellee (المستأنف ضده)
-- `listing`: `"judgment"` (محجوزة للحكم) or `"pleading"` (مرافعة)
-- `status`: `"waiting"`, `"next"`, `"in_review"`, `"discussed"` or `"judged"`
+## Building into the ASP.NET project
 
-The roll itself has no statuses, so the first case is marked as being heard for the demo. `SESSION_INFO` in the same file holds the court name and hall shown in the header.
+```bash
+WWWROOT=../YourBackend/wwwroot npm run build
+```
 
-To connect a real backend, change `fetchTodaysCases()` to call your API. `useCourtCases` already reloads the data every 30 seconds.
+This writes `admin-dashboard.html`, `clerk-panel.html` and `hearing-schedule.html` over the old pages, puts the scripts and styles in `wwwroot/court-roll-assets/`, and adds `court-roll-icon.svg`. Nothing else in `wwwroot` is deleted or replaced: the backend's `/js/tafqit.min.js` and `/js/signalr.min.js` stay where they are. Without `WWWROOT` the build goes to `dist/`.
+
+## Backend contract
+
+The endpoints, payloads and field names are unchanged from the original pages (see `src/lib/api.ts`):
+
+- `GET /api/session/courts`, `/courts/{id}/halls`, `/courts/{id}/panels`
+- `GET /api/session/calendar?month=YYYY-MM&courtId=&hallId=`
+- `GET /api/session/sessions?courtId=&hallId=&date=` and `GET /api/session/sessions/{id}`
+- `POST /api/session/sessions` (empty session), `POST /api/session/investment/sessions` (404 means no cases), `POST /api/document/upload-and-create-session` (Word file, multipart)
+- `DELETE /api/session/sessions/{id}`
+- `PUT /api/session/sessions/{sessionId}/cases/{caseId}/status` with `{ status, modifiedBy: "أمين السر" }`
+- SignalR `/sessionHub`: `JoinSession(sessionId)` and the `CaseStatusChanged(caseId, newStatus, modifiedBy)` event
+
+Statuses are the backend's values: `in-review` (في الإنتظار), `upcoming-next` (الجلسة القادمة), `in-progress` (تنظر الآن), `discussed` (تمت المناقشة), `ruling-issued` (تم الحكم). Case numbers are shown reversed, as before (`210/7103/2024` → `2024/7103/210`).
+
+## What each page does
+
+**Admin dashboard.** Court and hall filters and a Sunday-first month calendar showing how many sessions each day has. Clicking a day lists its sessions, with buttons to open the audience view, open the clerk panel, or delete (after a confirmation dialog). **إنشاء جلسة جديدة** creates a session in one of three ways:
+- **Investment court** (its name contains "الاستثمار"): pick the panel (الدائرة); the cases come from the backend. The Word upload, order and title fields are hidden, since that path doesn't use them.
+- **With a Word file:** uploaded with the session details.
+- **Empty session:** sent as JSON with `hearingInfo`.
+
+Messages appear as toasts instead of browser alerts.
+
+**Clerk panel.** With several sessions on a date it first shows them with counts per status. Clicking a case opens a menu of the five statuses; the change is saved with the PUT request and confirmed with a toast. Changes from other clerk panels arrive live. Buttons: back to the dashboard, the session list, and copy the audience link.
+
+**Hearing schedule.** The case being heard and the next case in large cards, the panel members (أعضاء الهيئة), and the full list scrolling continuously. Without parameters it goes to the dashboard; with several sessions on a date it shows the session list first. It joins all of the day's sessions, so when a case in another session becomes تنظر الآن it switches to that session and announces the case. After each full pass of the list it moves to the next session, but it stays on (or moves to) a session whose case is being heard. A tools menu (أدوات) slides down when the mouse reaches the top-right corner: dashboard, session list and voice settings.
+
+## Voice announcements
+
+When a case becomes تنظر الآن, the hearing schedule announces it.
+
+**Engine.** Set in one line in `src/lib/tts/config.ts`:
+
+```ts
+export const TTS_ENGINE: TtsEngine = ... ?? "webspeech"   // or "supertonic"
+```
+
+A build can also set `VITE_TTS_ENGINE=supertonic`.
+
+- `"webspeech"` (default): the browser's built-in voices, as in the original page: Microsoft Naayf when available (otherwise the first Arabic voice), rate 2.2, pitch 0.5.
+- `"supertonic"`: [Supertonic 3](https://github.com/supertone-oss-archive/supertonic), an open text-to-speech model that runs on the device with ONNX Runtime Web (graphics card via WebGPU when available, otherwise the processor).
+
+**Wording.** Chosen in the voice settings and remembered per browser:
+
+- **الصيغة الحالية** (default): the original sentence, «القضية رقم …، على …، على …، تُنْظَرُ الْآنَ», with each part of the case number spelled out by the backend's `/js/tafqit.min.js`.
+- **الصيغة المشكولة**: «تُنْظَرُ الآنَ الدَّعْوَى رَقْم مِئَتَيْن وَعَشَرَة لِسَنَة أَلْفَيْن وَأَرْبَعَة وَعِشْرِين», spelled with full tashkeel in the pausal form announcers use, reading the case number, the parties' names, or both. Company-form abbreviations such as ش م م are left out of names so they aren't spelled letter by letter.
+
+With Supertonic the settings also offer the language (Arabic, or English around the Arabic names), five male and five female voices, speed and quality. **تجربة الصوت** plays a test sentence.
+
+**Blocked sound.** Browsers may refuse to play sound on a page nobody has clicked. If an announcement is blocked, a button appears in the corner; one click enables sound and replays it. Running the TV browser in kiosk mode with autoplay allowed avoids this.
+
+### Supertonic model files
+
+The model is large (about 380 MB) and loads only when Supertonic is the engine. Run `npm run download-voice` once to save it in `public/supertonic`; it is then built into `wwwroot/supertonic` and served by the backend, so no internet is needed. Without it, each browser downloads the model from the archived Supertonic 3 snapshot on Hugging Face (pinned to a revision), or from `VITE_SUPERTONIC_URL`, and keeps it after the first download. Supertone has archived the project, so keeping your own copy is safer. The model is licensed under OpenRAIL-M; the inference code ported in `src/lib/tts/supertonic.ts` is MIT.
+
+## Project layout
+
+- `admin-dashboard.html`, `clerk-panel.html`, `hearing-schedule.html`: page entry points
+- `src/pages/*`: one folder per page
+- `src/components/court/*`: the board pieces shared by the pages; `src/components/ui/*`: shadcn components
+- `src/lib/api.ts`: backend client and types; `src/hooks/use-session-hub.ts`: SignalR
+- `src/lib/tts/*`: announcements (`config.ts` picks the engine)
+- `scripts/mock/`: the mock backend; `scripts/download-voice.mjs`: Supertonic model download
