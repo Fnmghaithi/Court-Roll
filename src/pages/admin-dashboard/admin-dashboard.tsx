@@ -1,7 +1,8 @@
-import { CalendarDays, ChevronLeft, ChevronRight, Clock, ClipboardList, Eye, Landmark, Loader2, PanelsTopLeft, Trash2 } from "lucide-react"
+import { CalendarCheck, ChevronLeft, ChevronRight, Clock, ClipboardList, Eye, Filter, Landmark, Loader2, PanelsTopLeft, Trash2 } from "lucide-react"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
 
+import { BoardHeader } from "@/components/court/board-header"
 import { PageShell } from "@/components/court/page-shell"
 import {
   AlertDialog,
@@ -15,7 +16,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -111,6 +112,36 @@ export function AdminDashboard() {
     void loadCalendar()
   }, [loadCalendar])
 
+  // Today's sessions for the side panel, with the same filters, whichever month is shown.
+  const [today] = useState(() => {
+    const now = new Date()
+    return { iso: isoDay(now.getFullYear(), now.getMonth(), now.getDate()), month: `${now.getFullYear()}-${pad(now.getMonth() + 1)}` }
+  })
+  const [todaySessions, setTodaySessions] = useState<CalendarSession[] | null>(null)
+
+  const loadToday = useCallback(async () => {
+    try {
+      const list = await api.calendar(
+        today.month,
+        courtId === ALL ? undefined : Number(courtId),
+        hallId === ALL ? undefined : Number(hallId)
+      )
+      setTodaySessions(list.filter((s) => s.sessionDate.startsWith(today.iso)))
+    } catch (error) {
+      console.error("Error loading today's sessions:", error)
+      setTodaySessions([])
+    }
+  }, [today, courtId, hallId])
+
+  useEffect(() => {
+    void loadToday()
+  }, [loadToday])
+
+  const reload = useCallback(() => {
+    void loadCalendar()
+    void loadToday()
+  }, [loadCalendar, loadToday])
+
   const chooseCourt = async (value: string) => {
     setCourtId(value)
     setHallId(ALL)
@@ -145,161 +176,289 @@ export function AdminDashboard() {
   }
 
   const daySessions = openDay ? (byDay.get(openDay) ?? []) : []
+  const monthCases = sessions.reduce((n, s) => n + (s.casesCount ?? 0), 0)
 
   return (
-    <PageShell className="max-w-[90rem]">
-      <header className="flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center gap-3 sm:gap-4">
-          <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground sm:size-12">
-            <CalendarDays className="size-5 sm:size-6" />
-          </div>
-          <div>
-            <h1 className="text-lg font-bold sm:text-2xl">لوحة التحكم - إدارة الجلسات</h1>
-            <p className="text-sm text-muted-foreground sm:text-base">إنشاء جلسات المحاكم وإدارتها وعرضها</p>
-          </div>
-        </div>
-        <CreateSessionDialog courts={courts} onCreated={loadCalendar} />
-      </header>
+    <PageShell>
+      <BoardHeader
+        title="لوحة التحكم - إدارة الجلسات"
+        subtitle={["إنشاء جلسات المحاكم وإدارتها وعرضها"]}
+        actions={<CreateSessionDialog courts={courts} onCreated={reload} />}
+      />
 
-      <Card className="grid gap-5 px-6 py-5 sm:grid-cols-2">
-        <div className="grid gap-2">
-          <Label htmlFor="filter-court" className="text-primary">
-            المحكمة
-          </Label>
-          <Select value={courtId} onValueChange={chooseCourt}>
-            <SelectTrigger id="filter-court" className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ALL}>جميع المحاكم</SelectItem>
-              {courts.map((c) => (
-                <SelectItem key={c.courtId} value={String(c.courtId)}>
-                  {c.courtName}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="grid gap-2">
-          <Label htmlFor="filter-hall" className="text-primary">
-            القاعة
-          </Label>
-          <Select value={hallId} onValueChange={setHallId} disabled={courtId === ALL}>
-            <SelectTrigger id="filter-hall" className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ALL}>جميع القاعات</SelectItem>
-              {halls.map((h) => (
-                <SelectItem key={h.hallId} value={String(h.hallId)}>
-                  {h.hallName}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </Card>
+      <main className="grid items-start gap-6 lg:grid-cols-[minmax(0,4fr)_minmax(0,8fr)]">
+        <section aria-label="جلسات اليوم وملخص الشهر" className="flex flex-col gap-6">
+          {/* Today's sessions, styled like the "being heard" card on the board. */}
+          <Card className="gap-4 border-gold/20 bg-cream">
+            <CardHeader className="flex items-center gap-2.5">
+              <CalendarCheck aria-hidden className="size-5 text-gold" />
+              <CardTitle className="text-base font-bold text-gold">جلسات اليوم</CardTitle>
+              <span className="ms-auto text-sm text-muted-foreground">{longDate.format(new Date(`${today.iso}T00:00:00`))}</span>
+            </CardHeader>
+            <CardContent>
+              {todaySessions === null ? (
+                <Loader2 aria-label="جاري التحميل" className="mx-auto my-6 size-6 animate-spin text-muted-foreground" />
+              ) : todaySessions.length === 0 ? (
+                <p className="py-4 text-lg text-muted-foreground">لا توجد جلسات اليوم</p>
+              ) : (
+                <ol className="flex flex-col gap-3">
+                  {todaySessions.map((s, i) => (
+                    <li key={s.sessionId} className="rounded-xl border border-gold/15 bg-card/70 p-4">
+                      <div className="flex items-start gap-3">
+                        <span className="font-mono text-2xl font-semibold text-gold tabular-nums">{String(i + 1).padStart(2, "0")}</span>
+                        <div className="min-w-0 flex-1">
+                          <p className="font-bold text-primary">{sessionLabel(s)}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {s.courtName} - {s.hallName}
+                          </p>
+                          <p className="mt-1 flex flex-wrap gap-x-4 text-sm text-muted-foreground">
+                            <span className="flex items-center gap-1">
+                              <Clock aria-hidden className="size-3.5" />
+                              {s.sessionTime ? formatTime(s.sessionTime) : "غير محدد"}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <ClipboardList aria-hidden className="size-3.5" />
+                              {s.casesCount} قضية
+                            </span>
+                          </p>
+                        </div>
+                      </div>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <Button asChild size="sm">
+                          <a href={`hearing-schedule.html?court=${s.courtId}&hall=${s.hallId}&date=${today.iso}`}>
+                            <Eye />
+                            عرض الجلسة
+                          </a>
+                        </Button>
+                        <Button asChild size="sm" variant="outline" className="bg-card">
+                          <a href={`clerk-panel.html?session=${s.sessionId}`}>
+                            <PanelsTopLeft />
+                            لوحة أمين السر
+                          </a>
+                        </Button>
+                      </div>
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </CardContent>
+          </Card>
 
-      <Card className="gap-5 px-4 py-6 sm:px-6">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <Button variant="outline" size="icon" onClick={() => shiftMonth(-1)} aria-label="الشهر السابق">
-              <ChevronRight />
-            </Button>
-            <h2 className="min-w-40 text-center text-xl font-bold text-primary sm:text-2xl" aria-live="polite">
-              {MONTHS[month.month]} {month.year}
-            </h2>
-            <Button variant="outline" size="icon" onClick={() => shiftMonth(1)} aria-label="الشهر التالي">
-              <ChevronLeft />
-            </Button>
-            {loading && <Loader2 aria-label="جاري التحميل" className="size-5 animate-spin text-muted-foreground" />}
-          </div>
-          <Button variant="secondary" onClick={goToToday}>
-            اليوم
-          </Button>
-        </div>
+          {/* The month at a glance, styled like the "next case" card. */}
+          <Card className="gap-4 border-primary bg-primary text-primary-foreground">
+            <CardHeader className="flex items-center gap-2.5">
+              <span className="size-2.5 rounded-full bg-primary-foreground/70" />
+              <CardTitle className="text-base font-bold text-primary-foreground/80">
+                {MONTHS[month.month]} {month.year}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="grid grid-cols-3 gap-4">
+              <MonthStat label="الجلسات" value={sessions.length} />
+              <MonthStat label="أيام الجلسات" value={byDay.size} />
+              <MonthStat label="القضايا" value={monthCases} />
+            </CardContent>
+          </Card>
+        </section>
 
-        <div className="grid grid-cols-7 gap-1.5 sm:gap-2.5">
-          {DAYS.map((day) => (
-            <div key={day} className="rounded-md bg-muted py-2 text-center text-xs font-bold text-primary sm:text-sm">
-              <span className="sm:hidden">{day.replace("ال", "").slice(0, 2)}</span>
-              <span className="hidden sm:inline">{day}</span>
-            </div>
-          ))}
-          {monthGrid(month.year, month.month).map((cell, i) => {
-            const list = cell.date ? (byDay.get(cell.date) ?? []) : []
-            const body = (
-              <>
-                <span className={cn("font-mono text-sm font-semibold tabular-nums sm:text-lg", cell.isToday && "text-live")}>
-                  {cell.day}
-                </span>
-                {list.length > 0 && (
-                  <span
-                    className={cn(
-                      "mt-auto truncate rounded-md px-1.5 py-1 text-center text-[0.65rem] font-medium sm:text-xs",
-                      list.length > 1 ? "bg-gold text-primary-foreground" : "bg-primary text-primary-foreground"
-                    )}
-                  >
-                    <span className="sm:hidden">{list.length}</span>
-                    <span className="hidden sm:inline">{sessionCount(list.length)}</span>
-                  </span>
-                )}
-              </>
-            )
-            const cellClass = cn(
-              "flex min-h-16 flex-col gap-1 rounded-lg border bg-card p-1.5 text-start sm:aspect-[5/4] sm:min-h-0 sm:p-2.5",
-              !cell.inMonth && "border-transparent bg-muted/40 text-muted-foreground/60",
-              cell.isToday && "border-2 border-live"
-            )
-            return list.length > 0 ? (
-              <button
-                key={i}
-                type="button"
-                onClick={() => setOpenDay(cell.date!)}
-                aria-label={`${cell.day} ${MONTHS[month.month]}: ${sessionCount(list.length)}`}
-                className={cn(cellClass, "transition hover:-translate-y-0.5 hover:border-primary hover:shadow-md focus-visible:outline-2 focus-visible:outline-primary")}
+        {/* The calendar, styled like the board's case table. */}
+        <Card className="gap-0 overflow-hidden border-0 py-0">
+          <CardHeader className="flex flex-wrap items-center justify-between gap-3 bg-primary py-4 text-primary-foreground">
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => shiftMonth(-1)}
+                aria-label="الشهر السابق"
+                className="text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground"
               >
-                {body}
-              </button>
-            ) : (
-              <div key={i} className={cellClass}>
-                {body}
+                <ChevronRight />
+              </Button>
+              <h2 className="min-w-36 text-center text-lg font-bold sm:text-xl" aria-live="polite">
+                {MONTHS[month.month]} {month.year}
+              </h2>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => shiftMonth(1)}
+                aria-label="الشهر التالي"
+                className="text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground"
+              >
+                <ChevronLeft />
+              </Button>
+              {loading && <Loader2 aria-label="جاري التحميل" className="size-5 animate-spin text-primary-foreground/70" />}
+            </div>
+            <Button variant="secondary" size="sm" onClick={goToToday}>
+              اليوم
+            </Button>
+          </CardHeader>
+
+          <div className="grid gap-4 border-b bg-row-alt px-4 py-4 sm:grid-cols-[auto_minmax(0,1fr)_minmax(0,1fr)] sm:items-end sm:px-6">
+            <span className="flex items-center gap-2 text-sm font-bold text-primary sm:pb-2">
+              <Filter aria-hidden className="size-4" />
+              تصفية
+            </span>
+            <div className="grid gap-1.5">
+              <Label htmlFor="filter-court" className="text-xs text-muted-foreground">
+                المحكمة
+              </Label>
+              <Select value={courtId} onValueChange={chooseCourt}>
+                <SelectTrigger id="filter-court" className="w-full bg-card">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={ALL}>جميع المحاكم</SelectItem>
+                  {courts.map((c) => (
+                    <SelectItem key={c.courtId} value={String(c.courtId)}>
+                      {c.courtName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-1.5">
+              <Label htmlFor="filter-hall" className="text-xs text-muted-foreground">
+                القاعة
+              </Label>
+              <Select value={hallId} onValueChange={setHallId} disabled={courtId === ALL}>
+                <SelectTrigger id="filter-hall" className="w-full bg-card">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={ALL}>جميع القاعات</SelectItem>
+                  {halls.map((h) => (
+                    <SelectItem key={h.hallId} value={String(h.hallId)}>
+                      {h.hallName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-7 bg-primary/95 text-center text-xs font-medium text-primary-foreground/85 sm:text-sm">
+            {DAYS.map((day) => (
+              <div key={day} className="py-2.5">
+                <span className="sm:hidden">{day.replace("ال", "").slice(0, 2)}</span>
+                <span className="hidden sm:inline">{day}</span>
               </div>
-            )
-          })}
-        </div>
-      </Card>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-7 gap-1.5 p-2 sm:gap-2 sm:p-4">
+            {monthGrid(month.year, month.month).map((cell, i) => {
+              const list = cell.date ? (byDay.get(cell.date) ?? []) : []
+              const body = (
+                <>
+                  {cell.isToday && <span aria-hidden className="absolute inset-y-0 start-0 w-1 rounded-s-lg bg-gold" />}
+                  <span className="flex items-center justify-between gap-1">
+                    <span
+                      className={cn(
+                        "font-mono text-sm font-semibold tabular-nums sm:text-lg",
+                        cell.inMonth ? "text-foreground" : "text-muted-foreground/50",
+                        cell.isToday && "text-gold"
+                      )}
+                    >
+                      {cell.day}
+                    </span>
+                    {cell.isToday && <span className="hidden text-xs font-bold text-gold sm:inline">اليوم</span>}
+                  </span>
+                  {list.length > 0 && (
+                    <span
+                      className={cn(
+                        "mt-auto truncate rounded-md px-1.5 py-1 text-center text-[0.65rem] font-medium sm:text-xs",
+                        list.length > 1 ? "bg-gold text-primary-foreground" : "bg-primary text-primary-foreground"
+                      )}
+                    >
+                      <span className="sm:hidden">{list.length}</span>
+                      <span className="hidden sm:inline">{sessionCount(list.length)}</span>
+                    </span>
+                  )}
+                </>
+              )
+              const cellClass = cn(
+                "relative flex min-h-16 flex-col gap-1 rounded-lg border p-1.5 text-start sm:aspect-[5/4] sm:min-h-0 sm:p-2.5",
+                cell.inMonth ? "bg-card" : "border-transparent bg-muted/50",
+                cell.isToday && "border-gold/40 bg-cream"
+              )
+              return list.length > 0 ? (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => setOpenDay(cell.date!)}
+                  aria-label={`${cell.day} ${MONTHS[month.month]}: ${sessionCount(list.length)}`}
+                  className={cn(
+                    cellClass,
+                    "transition hover:-translate-y-0.5 hover:border-primary hover:shadow-md focus-visible:outline-2 focus-visible:outline-primary"
+                  )}
+                >
+                  {body}
+                </button>
+              ) : (
+                <div key={i} className={cellClass}>
+                  {body}
+                </div>
+              )
+            })}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-2 border-t px-4 py-3 text-xs text-muted-foreground sm:px-6">
+            <span className="flex items-center gap-1.5">
+              <span className="size-3 rounded-sm bg-primary" /> جلسة واحدة
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="size-3 rounded-sm bg-gold" /> أكثر من جلسة
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="size-3 rounded-sm border border-gold/40 bg-cream" /> اليوم
+            </span>
+          </div>
+        </Card>
+      </main>
 
       <Dialog open={openDay !== null} onOpenChange={(open) => !open && setOpenDay(null)}>
-        <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-2xl" dir="rtl">
-          <DialogHeader>
-            <DialogTitle className="text-xl text-primary">الجلسات</DialogTitle>
-            <DialogDescription>{openDay && longDate.format(new Date(`${openDay}T00:00:00`))}</DialogDescription>
+        <DialogContent className="max-h-[90dvh] gap-0 overflow-hidden p-0 sm:max-w-2xl [&>[data-slot=dialog-close]]:text-primary-foreground" dir="rtl">
+          <DialogHeader className="bg-primary px-6 py-5 text-primary-foreground">
+            <DialogTitle className="text-xl">الجلسات</DialogTitle>
+            <DialogDescription className="text-primary-foreground/75">
+              {openDay && longDate.format(new Date(`${openDay}T00:00:00`))}
+            </DialogDescription>
           </DialogHeader>
-          {daySessions.length === 0 ? (
-            <p className="py-10 text-center text-muted-foreground">لا توجد جلسات في هذا التاريخ</p>
-          ) : (
-            <ul className="grid gap-4">
-              {daySessions.map((s) => (
-                <SessionCard
-                  key={s.sessionId}
-                  session={s}
-                  date={openDay!}
-                  onDeleted={() => {
-                    setOpenDay(null)
-                    void loadCalendar()
-                  }}
-                />
-              ))}
-            </ul>
-          )}
+          <div className="overflow-y-auto p-6">
+            {daySessions.length === 0 ? (
+              <p className="py-10 text-center text-muted-foreground">لا توجد جلسات في هذا التاريخ</p>
+            ) : (
+              <ol className="grid gap-4">
+                {daySessions.map((s, i) => (
+                  <SessionCard
+                    key={s.sessionId}
+                    index={i}
+                    session={s}
+                    date={openDay!}
+                    onDeleted={() => {
+                      setOpenDay(null)
+                      reload()
+                    }}
+                  />
+                ))}
+              </ol>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </PageShell>
   )
 }
 
-function SessionCard({ session, date, onDeleted }: { session: CalendarSession; date: string; onDeleted: () => void }) {
+function MonthStat({ label, value }: { label: string; value: number }) {
+  return (
+    <div>
+      <p className="text-sm text-primary-foreground/60">{label}</p>
+      <p className="font-mono text-3xl font-semibold tabular-nums">{value}</p>
+    </div>
+  )
+}
+
+function SessionCard({ index, session, date, onDeleted }: { index: number; session: CalendarSession; date: string; onDeleted: () => void }) {
   const [deleting, setDeleting] = useState(false)
 
   const remove = async () => {
@@ -317,7 +476,9 @@ function SessionCard({ session, date, onDeleted }: { session: CalendarSession; d
   }
 
   return (
-    <li className="rounded-xl border p-5">
+    <li className="flex gap-4 rounded-xl border bg-card p-5 even:bg-row-alt">
+      <span className="font-mono text-3xl font-semibold text-gold tabular-nums">{String(index + 1).padStart(2, "0")}</span>
+      <div className="min-w-0 flex-1">
       <h3 className="text-lg font-bold text-primary">{sessionLabel(session)}</h3>
       <dl className="mt-2 grid gap-1 text-sm text-muted-foreground">
         <div className="flex items-center gap-2">
@@ -373,6 +534,7 @@ function SessionCard({ session, date, onDeleted }: { session: CalendarSession; d
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+      </div>
       </div>
     </li>
   )
