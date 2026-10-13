@@ -98,8 +98,13 @@ export class ApiError extends Error {
 async function errorFrom(res: Response) {
   const text = await res.text()
   try {
-    const json = JSON.parse(text) as { message?: string; title?: string }
-    return new ApiError(res.status, json.message || json.title || text || `HTTP ${res.status}`)
+    const json = JSON.parse(text) as { message?: string; title?: string; errors?: Record<string, string[] | string> }
+    // ASP.NET validation responses list the rejected fields under "errors"; show them with the title.
+    const details = json.errors
+      ? Object.entries(json.errors).map(([field, messages]) => `${field}: ${[messages].flat().join("، ")}`)
+      : []
+    const message = json.message || json.title || text || `HTTP ${res.status}`
+    return new ApiError(res.status, details.length ? `${message} (${details.join(" | ")})` : message)
   } catch {
     return new ApiError(res.status, text || `HTTP ${res.status}`)
   }
