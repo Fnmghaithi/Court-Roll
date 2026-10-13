@@ -1,4 +1,4 @@
-import { CalendarCheck, ChevronLeft, ChevronRight, Clock, ClipboardList, Eye, Filter, Landmark, Loader2, PanelsTopLeft, Trash2 } from "lucide-react"
+import { ChevronLeft, ChevronRight, Clock, ClipboardList, Eye, Filter, Landmark, Loader2, PanelsTopLeft, Trash2 } from "lucide-react"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
 
@@ -16,7 +16,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardHeader } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -112,35 +112,7 @@ export function AdminDashboard() {
     void loadCalendar()
   }, [loadCalendar])
 
-  // Today's sessions for the side panel, with the same filters, whichever month is shown.
-  const [today] = useState(() => {
-    const now = new Date()
-    return { iso: isoDay(now.getFullYear(), now.getMonth(), now.getDate()), month: `${now.getFullYear()}-${pad(now.getMonth() + 1)}` }
-  })
-  const [todaySessions, setTodaySessions] = useState<CalendarSession[] | null>(null)
-
-  const loadToday = useCallback(async () => {
-    try {
-      const list = await api.calendar(
-        today.month,
-        courtId === ALL ? undefined : Number(courtId),
-        hallId === ALL ? undefined : Number(hallId)
-      )
-      setTodaySessions(list.filter((s) => s.sessionDate.startsWith(today.iso)))
-    } catch (error) {
-      console.error("Error loading today's sessions:", error)
-      setTodaySessions([])
-    }
-  }, [today, courtId, hallId])
-
-  useEffect(() => {
-    void loadToday()
-  }, [loadToday])
-
-  const reload = useCallback(() => {
-    void loadCalendar()
-    void loadToday()
-  }, [loadCalendar, loadToday])
+  const reload = loadCalendar
 
   const chooseCourt = async (value: string) => {
     setCourtId(value)
@@ -176,7 +148,6 @@ export function AdminDashboard() {
   }
 
   const daySessions = openDay ? (byDay.get(openDay) ?? []) : []
-  const monthCases = sessions.reduce((n, s) => n + (s.casesCount ?? 0), 0)
 
   return (
     <PageShell>
@@ -186,80 +157,7 @@ export function AdminDashboard() {
         actions={<CreateSessionDialog courts={courts} onCreated={reload} />}
       />
 
-      <main className="grid items-start gap-6 lg:grid-cols-[minmax(0,4fr)_minmax(0,8fr)]">
-        <section aria-label="جلسات اليوم وملخص الشهر" className="flex flex-col gap-6">
-          {/* Today's sessions, styled like the "being heard" card on the board. */}
-          <Card className="gap-4 border-gold/20 bg-cream">
-            <CardHeader className="flex items-center gap-2.5">
-              <CalendarCheck aria-hidden className="size-5 text-gold" />
-              <CardTitle className="text-base font-bold text-gold">جلسات اليوم</CardTitle>
-              <span className="ms-auto text-sm text-muted-foreground">{longDate.format(new Date(`${today.iso}T00:00:00`))}</span>
-            </CardHeader>
-            <CardContent>
-              {todaySessions === null ? (
-                <Loader2 aria-label="جاري التحميل" className="mx-auto my-6 size-6 animate-spin text-muted-foreground" />
-              ) : todaySessions.length === 0 ? (
-                <p className="py-4 text-lg text-muted-foreground">لا توجد جلسات اليوم</p>
-              ) : (
-                <ol className="flex flex-col gap-3">
-                  {todaySessions.map((s, i) => (
-                    <li key={s.sessionId} className="rounded-xl border border-gold/15 bg-card/70 p-4">
-                      <div className="flex items-start gap-3">
-                        <span className="font-mono text-2xl font-semibold text-gold tabular-nums">{String(i + 1).padStart(2, "0")}</span>
-                        <div className="min-w-0 flex-1">
-                          <p className="font-bold text-primary">{sessionLabel(s)}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {s.courtName} - {s.hallName}
-                          </p>
-                          <p className="mt-1 flex flex-wrap gap-x-4 text-sm text-muted-foreground">
-                            <span className="flex items-center gap-1">
-                              <Clock aria-hidden className="size-3.5" />
-                              {s.sessionTime ? formatTime(s.sessionTime) : "غير محدد"}
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <ClipboardList aria-hidden className="size-3.5" />
-                              {s.casesCount} قضية
-                            </span>
-                          </p>
-                        </div>
-                      </div>
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        <Button asChild size="sm">
-                          <a href={`hearing-schedule.html?court=${s.courtId}&hall=${s.hallId}&date=${today.iso}`}>
-                            <Eye />
-                            عرض الجلسة
-                          </a>
-                        </Button>
-                        <Button asChild size="sm" variant="outline" className="bg-card">
-                          <a href={`clerk-panel.html?session=${s.sessionId}`}>
-                            <PanelsTopLeft />
-                            لوحة أمين السر
-                          </a>
-                        </Button>
-                      </div>
-                    </li>
-                  ))}
-                </ol>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* The month at a glance, styled like the "next case" card. */}
-          <Card className="gap-4 border-primary bg-primary text-primary-foreground">
-            <CardHeader className="flex items-center gap-2.5">
-              <span className="size-2.5 rounded-full bg-primary-foreground/70" />
-              <CardTitle className="text-base font-bold text-primary-foreground/80">
-                {MONTHS[month.month]} {month.year}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="grid grid-cols-3 gap-4">
-              <MonthStat label="الجلسات" value={sessions.length} />
-              <MonthStat label="أيام الجلسات" value={byDay.size} />
-              <MonthStat label="القضايا" value={monthCases} />
-            </CardContent>
-          </Card>
-        </section>
-
+      <main>
         {/* The calendar, styled like the board's case table. */}
         <Card className="gap-0 overflow-hidden border-0 py-0">
           <CardHeader className="flex flex-wrap items-center justify-between gap-3 bg-primary py-4 text-primary-foreground">
@@ -416,14 +314,18 @@ export function AdminDashboard() {
       </main>
 
       <Dialog open={openDay !== null} onOpenChange={(open) => !open && setOpenDay(null)}>
-        <DialogContent className="max-h-[90dvh] gap-0 overflow-hidden p-0 sm:max-w-2xl [&>[data-slot=dialog-close]]:text-primary-foreground" dir="rtl">
-          <DialogHeader className="bg-primary px-6 py-5 text-primary-foreground">
+        <DialogContent
+          className="flex max-h-[90dvh] flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl [&>[data-slot=dialog-close]]:text-primary-foreground"
+          dir="rtl"
+        >
+          <DialogHeader className="shrink-0 bg-primary px-6 py-5 text-primary-foreground">
             <DialogTitle className="text-xl">الجلسات</DialogTitle>
             <DialogDescription className="text-primary-foreground/75">
               {openDay && longDate.format(new Date(`${openDay}T00:00:00`))}
             </DialogDescription>
           </DialogHeader>
-          <div className="overflow-y-auto p-6">
+          {/* min-h-0 lets this area shrink inside the dialog's height limit and scroll. */}
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-6">
             {daySessions.length === 0 ? (
               <p className="py-10 text-center text-muted-foreground">لا توجد جلسات في هذا التاريخ</p>
             ) : (
@@ -446,15 +348,6 @@ export function AdminDashboard() {
         </DialogContent>
       </Dialog>
     </PageShell>
-  )
-}
-
-function MonthStat({ label, value }: { label: string; value: number }) {
-  return (
-    <div>
-      <p className="text-sm text-primary-foreground/60">{label}</p>
-      <p className="font-mono text-3xl font-semibold tabular-nums">{value}</p>
-    </div>
   )
 }
 

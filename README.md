@@ -52,9 +52,9 @@ Statuses are the backend's values: `in-review` (في الإنتظار), `upcomin
 
 ## What each page does
 
-**Admin dashboard.** Court and hall filters and a Sunday-first month calendar showing how many sessions each day has. Clicking a day lists its sessions, with buttons to open the audience view, open the clerk panel, or delete (after a confirmation dialog). **إنشاء جلسة جديدة** creates a session in one of three ways:
-- **Investment court** (its name contains "الاستثمار"): pick the panel (الدائرة); the cases come from the backend. The Word upload, order and title fields are hidden, since that path doesn't use them.
-- **With a Word file:** uploaded with the session details.
+**Admin dashboard.** Only the month calendar: court and hall filters and a Sunday-first grid showing how many sessions each day has. Clicking a day opens a scrollable list of its sessions, with buttons to open the audience view, open the clerk panel, or delete (after a confirmation dialog). **إنشاء جلسة جديدة** creates a session in one of three ways:
+- **Investment court** (its name contains "الاستثمار") without a Word file: pick the panel (الدائرة); the cases come from the backend.
+- **With a Word file** (any court, investment courts included): uploaded with the session details, and the cases come from the file. No panel is needed and the backend's investment endpoint is not called. **إزالة الملف** removes the file to go back to the panel.
 - **Empty session:** sent as JSON with `hearingInfo`.
 
 Messages appear as toasts instead of browser alerts.

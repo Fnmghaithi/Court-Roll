@@ -1,4 +1,4 @@
-import { FileUp, Loader2, Plus } from "lucide-react"
+import { FileUp, Loader2, Plus, X } from "lucide-react"
 import { useRef, useState, type FormEvent } from "react"
 import { toast } from "sonner"
 
@@ -45,6 +45,9 @@ export function CreateSessionDialog({ courts, onCreated }: { courts: Court[]; on
 
   const court = courts.find((c) => String(c.courtId) === form.courtId)
   const investment = isInvestmentCourtName(court?.courtName)
+  // Investment courts normally take their cases from the system (API) for a panel.
+  // If a Word file is attached, the session is created from the file instead, like other courts.
+  const fromInvestmentApi = investment && !form.file
   const set = (patch: Partial<FormState>) => {
     setForm((f) => ({ ...f, ...patch }))
     // Clear the message for any field just filled in.
@@ -85,7 +88,7 @@ export function CreateSessionDialog({ courts, onCreated }: { courts: Court[]; on
   const validate = () => {
     const e: typeof errors = {}
     if (!form.courtId) e.courtId = "اختر المحكمة"
-    if (investment && !form.panelId) e.panelId = "الرجاء اختيار الدائرة"
+    if (fromInvestmentApi && !form.panelId) e.panelId = "الرجاء اختيار الدائرة"
     if (!form.hallId) e.hallId = "اختر القاعة"
     if (!form.date) e.date = "اختر التاريخ"
     setErrors(e)
@@ -103,7 +106,7 @@ export function CreateSessionDialog({ courts, onCreated }: { courts: Court[]; on
 
     setSaving(true)
     try {
-      if (investment) {
+      if (fromInvestmentApi) {
         // Investment court: no Word file; the cases come from the selected panel's daily roll.
         try {
           await api.createInvestmentSession({
@@ -210,14 +213,14 @@ export function CreateSessionDialog({ courts, onCreated }: { courts: Court[]; on
             <Field
               label={
                 <>
-                  الدائرة *
+                  {form.file ? "الدائرة" : "الدائرة *"}
                   <Badge variant="outline" className="border-primary/25 text-primary">
                     محكمة استثمارية
                   </Badge>
                 </>
               }
               id="create-panel"
-              error={errors.panelId}
+              error={fromInvestmentApi ? errors.panelId : undefined}
             >
               <Select value={form.panelId} onValueChange={(panelId) => set({ panelId })}>
                 <SelectTrigger id="create-panel" className="w-full" aria-invalid={!!errors.panelId}>
@@ -231,6 +234,9 @@ export function CreateSessionDialog({ courts, onCreated }: { courts: Court[]; on
                   ))}
                 </SelectContent>
               </Select>
+              {form.file && (
+                <p className="text-xs text-muted-foreground">غير مطلوبة عند رفع ملف Word: تُنشأ الجلسة من الملف.</p>
+              )}
             </Field>
           )}
 
@@ -277,8 +283,8 @@ export function CreateSessionDialog({ courts, onCreated }: { courts: Court[]; on
             </Field>
           </div>
 
-          {!investment && (
-            <>
+          {/* Order and title are used when the session is created from Word or empty (not by the investment API). */}
+          {!fromInvestmentApi && (
               <div className="grid gap-5 sm:grid-cols-2">
                 <Field label="ترتيب الجلسة *" id="create-order">
                   <Select value={form.order} onValueChange={(order) => set({ order })}>
@@ -303,6 +309,7 @@ export function CreateSessionDialog({ courts, onCreated }: { courts: Court[]; on
                   />
                 </Field>
               </div>
+          )}
 
               <Field label="رفع مستند Word (اختياري)" id="create-file">
                 <button
@@ -320,6 +327,26 @@ export function CreateSessionDialog({ courts, onCreated }: { courts: Court[]; on
                   <span>انقر لرفع ملف Word، أو اسحبه إلى هنا</span>
                   {form.file && <span className="font-bold text-live">{form.file.name}</span>}
                 </button>
+                {form.file && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="justify-self-start text-destructive hover:bg-destructive/10 hover:text-destructive"
+                    onClick={() => {
+                      set({ file: null })
+                      if (fileInput.current) fileInput.current.value = ""
+                    }}
+                  >
+                    <X />
+                    إزالة الملف
+                  </Button>
+                )}
+                {investment && !form.file && (
+                  <p className="text-xs text-muted-foreground">
+                    بدون ملف تُجلب قضايا الدائرة من النظام. عند رفع ملف Word تُنشأ الجلسة من الملف بدلاً من ذلك.
+                  </p>
+                )}
                 <input
                   ref={fileInput}
                   id="create-file"
@@ -329,8 +356,6 @@ export function CreateSessionDialog({ courts, onCreated }: { courts: Court[]; on
                   onChange={(e) => set({ file: e.target.files?.[0] ?? null })}
                 />
               </Field>
-            </>
-          )}
         </form>
 
         <DialogFooter className="items-center gap-3">
