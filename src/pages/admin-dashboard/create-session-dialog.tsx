@@ -283,33 +283,31 @@ export function CreateSessionDialog({ courts, onCreated }: { courts: Court[]; on
             </Field>
           </div>
 
-          {/* Order and title are used when the session is created from Word or empty (not by the investment API). */}
-          {!fromInvestmentApi && (
-              <div className="grid gap-5 sm:grid-cols-2">
-                <Field label="ترتيب الجلسة *" id="create-order">
-                  <Select value={form.order} onValueChange={(order) => set({ order })}>
-                    <SelectTrigger id="create-order" className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {ORDERS.map((label, i) => (
-                        <SelectItem key={label} value={String(i + 1)}>
-                          {label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </Field>
-                <Field label="عنوان الجلسة" id="create-title">
-                  <Input
-                    id="create-title"
-                    value={form.title}
-                    onChange={(e) => set({ title: e.target.value })}
-                    placeholder="مثال: الجلسة الصباحية"
-                  />
-                </Field>
-              </div>
-          )}
+          {/* Order and title are always shown. The investment API (no Word file) does not use them. */}
+          <div className="grid gap-5 sm:grid-cols-2">
+            <Field label="ترتيب الجلسة *" id="create-order">
+              <Select value={form.order} onValueChange={(order) => set({ order })}>
+                <SelectTrigger id="create-order" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {ORDERS.map((label, i) => (
+                    <SelectItem key={label} value={String(i + 1)}>
+                      {label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+            <Field label="عنوان الجلسة" id="create-title">
+              <Input
+                id="create-title"
+                value={form.title}
+                onChange={(e) => set({ title: e.target.value })}
+                placeholder="مثال: الجلسة الصباحية"
+              />
+            </Field>
+          </div>
 
               <Field label="رفع مستند Word (اختياري)" id="create-file">
                 <button
