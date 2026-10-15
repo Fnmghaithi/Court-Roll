@@ -24,7 +24,7 @@ export function SpotlightCard({ variant, courtCase, className }: SpotlightCardPr
     <Card
       aria-live="polite"
       className={cn(
-        "relative gap-5 overflow-hidden",
+        "relative gap-3 overflow-hidden py-4 sm:gap-5 sm:py-6",
         isCurrent ? "border-gold/20 bg-cream" : "border-primary bg-primary text-primary-foreground",
         className
       )}
@@ -38,24 +38,24 @@ export function SpotlightCard({ variant, courtCase, className }: SpotlightCardPr
 
       <CardContent>
         {courtCase ? (
-          <div className="space-y-5">
+          <div className="space-y-3 sm:space-y-5">
             <p
               key={courtCase.caseId}
               className={cn(
                 "font-mono font-semibold tracking-tight animate-in fade-in slide-in-from-bottom-2 duration-500",
-                isCurrent ? "text-4xl sm:text-5xl" : "text-2xl sm:text-3xl"
+                isCurrent ? "text-3xl sm:text-5xl" : "text-2xl sm:text-3xl"
               )}
             >
               <span dir="ltr">{reverseCaseNumber(courtCase.caseNumber)}</span>
             </p>
 
-            <div className={cn("grid gap-4", isCurrent && "sm:grid-cols-2 sm:gap-8")}>
+            <div className={cn("grid grid-cols-2 gap-4", isCurrent && "sm:gap-8")}>
               <Party role={PARTY_LABELS.plaintiff} name={courtCase.plaintiff} large={isCurrent} onDark={!isCurrent} />
               <Party role={PARTY_LABELS.defendant} name={courtCase.defendant} large={isCurrent} onDark={!isCurrent} />
             </div>
           </div>
         ) : (
-          <p className={cn("py-4 text-lg", isCurrent ? "text-muted-foreground" : "text-primary-foreground/70")}>
+          <p className={cn("py-1 text-lg sm:py-4", isCurrent ? "text-muted-foreground" : "text-primary-foreground/70")}>
             {COPY[variant].empty}
           </p>
         )}
@@ -75,7 +75,7 @@ function Party({ role, name, large, onDark }: PartyProps) {
   return (
     <div className="min-w-0">
       <p className={cn("text-sm font-medium", onDark ? "text-primary-foreground/60" : "text-muted-foreground")}>{role}</p>
-      <p className={cn("mt-1 font-semibold text-balance", large ? "text-xl sm:text-2xl" : "text-lg sm:text-xl")}>{name}</p>
+      <p className={cn("mt-1 font-semibold text-balance", large ? "text-lg sm:text-2xl" : "text-base sm:text-xl")}>{name}</p>
     </div>
   )
 }
