@@ -183,7 +183,7 @@ export function HearingSchedule() {
 
 function Board({ session, label, onCycle }: { session: SessionDetail; label?: string; onCycle?: () => void }) {
   const info = session.hearingInfo
-  const partyLabels = getPartyLabels(info)
+  const partyLabels = getPartyLabels(info, info.courtName || session.courtName)
   const current = session.cases.find((c) => c.caseStatus === "in-progress")
   const next = session.cases.find((c) => c.caseStatus === "upcoming-next")
 

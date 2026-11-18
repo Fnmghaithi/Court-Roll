@@ -18,8 +18,20 @@ export const PARTY_LABELS = { plaintiff: "المدعي / المستأنف", defe
 
 export type PartyLabels = typeof PARTY_LABELS
 
-/** Labels from the roll's own table headers, falling back to the defaults (e.g. investment courts). */
-export function getPartyLabels(info?: { plaintiffLabel?: string | null; defendantLabel?: string | null }): PartyLabels {
+/** Investment courts are recognised by name, as in the original dashboard. */
+export function isInvestmentCourtName(name?: string | null) {
+  return !!name && name.includes("الاستثمار")
+}
+
+/**
+ * Labels from the roll's own table headers, falling back to the defaults.
+ * Investment courts always keep the defaults, whatever the session carries.
+ */
+export function getPartyLabels(
+  info?: { courtName?: string | null; plaintiffLabel?: string | null; defendantLabel?: string | null },
+  courtName = info?.courtName
+): PartyLabels {
+  if (isInvestmentCourtName(courtName)) return PARTY_LABELS
   return {
     plaintiff: info?.plaintiffLabel?.trim() || PARTY_LABELS.plaintiff,
     defendant: info?.defendantLabel?.trim() || PARTY_LABELS.defendant,

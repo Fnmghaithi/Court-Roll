@@ -128,7 +128,7 @@ export function ClerkPanel() {
     </Button>
   )
 
-  const partyLabels = getPartyLabels(session?.hearingInfo)
+  const partyLabels = getPartyLabels(session?.hearingInfo, session?.hearingInfo.courtName || session?.courtName)
 
   return (
     <PageShell fullHeight={phase.name === "board"}>

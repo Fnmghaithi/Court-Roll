@@ -118,7 +118,7 @@ function CaseRow({ index, courtCase, partyLabels, onStatusChange }: CaseRowProps
       <span className={cn("col-span-3 col-start-2 md:col-span-1 md:col-start-auto md:text-lg", finished && "opacity-50")}>
         <span className="sr-only">{partyLabels.plaintiff}: </span>
         {/* Long lists of names would make the row tall: show two lines, full text on hover. */}
-        <span className="line-clamp-2 break-words md:block" title={courtCase.plaintiff}>
+        <span className="line-clamp-2 break-words" title={courtCase.plaintiff}>
           {courtCase.plaintiff}
         </span>
         <span className="font-semibold text-gold md:hidden"> ضد </span>

@@ -9,17 +9,13 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { api, ApiError, type Court, type Hall, type Panel } from "@/lib/api"
+import { isInvestmentCourtName } from "@/lib/case-status"
 import { cn } from "@/lib/utils"
 
 const DAY_NAMES = ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"]
 const TIMES = ["08:00", "08:15", "08:30", "08:45", "09:00", "09:15", "09:30", "09:45", "10:00", "10:15", "10:30", "10:45", "11:00"]
 const ORDERS = ["الجلسة الأولى", "الجلسة الثانية", "الجلسة الثالثة", "الجلسة الرابعة", "الجلسة الخامسة"]
 const NO_TIME = "none"
-
-/** Investment courts are recognised by name, as in the original dashboard. */
-function isInvestmentCourtName(name?: string) {
-  return !!name && name.includes("الاستثمار")
-}
 
 interface FormState {
   courtId: string
