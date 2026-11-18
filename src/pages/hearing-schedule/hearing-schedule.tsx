@@ -12,7 +12,7 @@ import { ToolsMenu } from "@/components/court/tools-menu"
 import { Button } from "@/components/ui/button"
 import { useSessionHub } from "@/hooks/use-session-hub"
 import { api, sessionLabel, type SessionDetail, type SessionSummary } from "@/lib/api"
-import type { CaseStatus } from "@/lib/case-status"
+import { getPartyLabels, type CaseStatus } from "@/lib/case-status"
 import { readPageTarget, showDayInUrl, showSessionInUrl, siblingsOf, type DaySessions } from "@/lib/day-sessions"
 import { announceCase, preloadAnnouncer } from "@/lib/tts/announcer"
 import { cn } from "@/lib/utils"
@@ -183,6 +183,7 @@ export function HearingSchedule() {
 
 function Board({ session, label, onCycle }: { session: SessionDetail; label?: string; onCycle?: () => void }) {
   const info = session.hearingInfo
+  const partyLabels = getPartyLabels(info)
   const current = session.cases.find((c) => c.caseStatus === "in-progress")
   const next = session.cases.find((c) => c.caseStatus === "upcoming-next")
 
@@ -193,13 +194,13 @@ function Board({ session, label, onCycle }: { session: SessionDetail; label?: st
       />
       <main className="grid min-h-0 flex-1 grid-rows-[auto_minmax(0,1fr)] gap-4 sm:gap-6 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:grid-rows-1">
         <section aria-label="القضية الحالية والتالية" className="grid gap-4 sm:gap-6 md:grid-cols-2 lg:flex lg:min-h-0 lg:flex-col">
-          <SpotlightCard variant="current" courtCase={current} className="lg:flex-1 lg:justify-center" />
-          <SpotlightCard variant="next" courtCase={next} />
+          <SpotlightCard variant="current" courtCase={current} partyLabels={partyLabels} className="lg:flex-1 lg:justify-center" />
+          <SpotlightCard variant="next" courtCase={next} partyLabels={partyLabels} />
           {/* Below desktop size the space goes to the case list. */}
           <PanelMembers info={info} className="max-lg:hidden" />
         </section>
         {/* Keyed by session so switching sessions restarts the scroll from the top. */}
-        <CaseList key={session.sessionId} cases={session.cases} onCycle={onCycle} className="h-full min-h-48" />
+        <CaseList key={session.sessionId} cases={session.cases} partyLabels={partyLabels} onCycle={onCycle} className="h-full min-h-48" />
       </main>
     </>
   )

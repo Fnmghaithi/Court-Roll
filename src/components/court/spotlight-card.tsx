@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { reverseCaseNumber, type CourtCase } from "@/lib/api"
-import { PARTY_LABELS, STATUS_LABELS } from "@/lib/case-status"
+import { PARTY_LABELS, STATUS_LABELS, type PartyLabels } from "@/lib/case-status"
 import { cn } from "@/lib/utils"
 
 import { LiveDot } from "./status-badge"
@@ -8,6 +8,7 @@ import { LiveDot } from "./status-badge"
 interface SpotlightCardProps {
   variant: "current" | "next"
   courtCase?: CourtCase
+  partyLabels?: PartyLabels
   className?: string
 }
 
@@ -17,7 +18,7 @@ const COPY = {
 }
 
 /** Large, glanceable card for the case being heard and the next one. */
-export function SpotlightCard({ variant, courtCase, className }: SpotlightCardProps) {
+export function SpotlightCard({ variant, courtCase, partyLabels = PARTY_LABELS, className }: SpotlightCardProps) {
   const isCurrent = variant === "current"
 
   return (
@@ -50,8 +51,8 @@ export function SpotlightCard({ variant, courtCase, className }: SpotlightCardPr
             </p>
 
             <div className={cn("grid grid-cols-2 gap-4", isCurrent && "sm:gap-8")}>
-              <Party role={PARTY_LABELS.plaintiff} name={courtCase.plaintiff} large={isCurrent} onDark={!isCurrent} />
-              <Party role={PARTY_LABELS.defendant} name={courtCase.defendant} large={isCurrent} onDark={!isCurrent} />
+              <Party role={partyLabels.plaintiff} name={courtCase.plaintiff} large={isCurrent} onDark={!isCurrent} />
+              <Party role={partyLabels.defendant} name={courtCase.defendant} large={isCurrent} onDark={!isCurrent} />
             </div>
           </div>
         ) : (

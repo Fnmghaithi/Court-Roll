@@ -16,6 +16,16 @@ export const STATUS_LABELS: Record<CaseStatus, string> = {
 /** Column and card labels for the parties, as in the original pages (any kind of court). */
 export const PARTY_LABELS = { plaintiff: "المدعي / المستأنف", defendant: "المدعى عليه / المستأنف عليه" }
 
+export type PartyLabels = typeof PARTY_LABELS
+
+/** Labels from the roll's own table headers, falling back to the defaults (e.g. investment courts). */
+export function getPartyLabels(info?: { plaintiffLabel?: string | null; defendantLabel?: string | null }): PartyLabels {
+  return {
+    plaintiff: info?.plaintiffLabel?.trim() || PARTY_LABELS.plaintiff,
+    defendant: info?.defendantLabel?.trim() || PARTY_LABELS.defendant,
+  }
+}
+
 export function isFinished(status: CaseStatus) {
   return status === "discussed" || status === "ruling-issued"
 }

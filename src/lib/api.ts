@@ -29,6 +29,9 @@ export interface HearingInfo {
   hearingDay: string
   judges?: string[]
   clerks?: string[]
+  /** Column headings read from the Word roll; absent for investment courts. */
+  plaintiffLabel?: string | null
+  defendantLabel?: string | null
 }
 
 export interface CourtCase {

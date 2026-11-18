@@ -11,7 +11,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { reverseCaseNumber, type CourtCase } from "@/lib/api"
-import { CASE_STATUSES, isFinished, PARTY_LABELS, STATUS_LABELS, type CaseStatus } from "@/lib/case-status"
+import { CASE_STATUSES, isFinished, PARTY_LABELS, STATUS_LABELS, type CaseStatus, type PartyLabels } from "@/lib/case-status"
 import { cn } from "@/lib/utils"
 
 import { AutoScroll } from "./auto-scroll"
@@ -20,6 +20,8 @@ import { StatusBadge } from "./status-badge"
 interface CaseListProps {
   cases: CourtCase[]
   title?: string
+  /** Column headings for the parties; defaults to the standard labels. */
+  partyLabels?: PartyLabels
   /** When set, rows become clickable so the clerk can change a case's status. */
   onStatusChange?: (courtCase: CourtCase, status: CaseStatus) => void
   /** Called after each full pass of the scrolling list (or a pause when it fits). */
@@ -39,7 +41,14 @@ function formatCaseCount(count: number) {
 const COLUMNS =
   "md:grid md:grid-cols-[2.5rem_minmax(0,1fr)_minmax(0,1.5fr)_minmax(0,1.5fr)_10rem] md:items-center md:gap-6"
 
-export function CaseList({ cases, title = "جدول قضايا اليوم", onStatusChange, onCycle, className }: CaseListProps) {
+export function CaseList({
+  cases,
+  title = "جدول قضايا اليوم",
+  partyLabels = PARTY_LABELS,
+  onStatusChange,
+  onCycle,
+  className,
+}: CaseListProps) {
   const isClerk = Boolean(onStatusChange)
 
   return (
@@ -52,8 +61,8 @@ export function CaseList({ cases, title = "جدول قضايا اليوم", onSt
       <div className={cn("hidden bg-primary px-6 py-3 text-sm font-medium text-primary-foreground/85", COLUMNS)}>
         <span>م</span>
         <span>رقم الدعوى</span>
-        <span>{PARTY_LABELS.plaintiff}</span>
-        <span>{PARTY_LABELS.defendant}</span>
+        <span>{partyLabels.plaintiff}</span>
+        <span>{partyLabels.defendant}</span>
         <span>الحالة</span>
       </div>
 
@@ -65,6 +74,7 @@ export function CaseList({ cases, title = "جدول قضايا اليوم", onSt
               key={courtCase.caseId}
               index={index}
               courtCase={courtCase}
+              partyLabels={partyLabels}
               onStatusChange={onStatusChange}
             />
           ))}
@@ -77,10 +87,11 @@ export function CaseList({ cases, title = "جدول قضايا اليوم", onSt
 interface CaseRowProps {
   index: number
   courtCase: CourtCase
+  partyLabels: PartyLabels
   onStatusChange?: (courtCase: CourtCase, status: CaseStatus) => void
 }
 
-function CaseRow({ index, courtCase, onStatusChange }: CaseRowProps) {
+function CaseRow({ index, courtCase, partyLabels, onStatusChange }: CaseRowProps) {
   const status = courtCase.caseStatus
   const finished = isFinished(status)
   const rowClassName = cn(
@@ -105,8 +116,11 @@ function CaseRow({ index, courtCase, onStatusChange }: CaseRowProps) {
         {onStatusChange && <ChevronDown aria-hidden className="size-4 text-muted-foreground" />}
       </span>
       <span className={cn("col-span-3 col-start-2 md:col-span-1 md:col-start-auto md:text-lg", finished && "opacity-50")}>
-        <span className="sr-only">{PARTY_LABELS.plaintiff}: </span>
-        {courtCase.plaintiff}
+        <span className="sr-only">{partyLabels.plaintiff}: </span>
+        {/* Long lists of names would make the row tall: show two lines, full text on hover. */}
+        <span className="line-clamp-2 break-words md:block" title={courtCase.plaintiff}>
+          {courtCase.plaintiff}
+        </span>
         <span className="font-semibold text-gold md:hidden"> ضد </span>
       </span>
       <span
@@ -115,8 +129,10 @@ function CaseRow({ index, courtCase, onStatusChange }: CaseRowProps) {
           finished && "opacity-50"
         )}
       >
-        <span className="sr-only">{PARTY_LABELS.defendant}: </span>
-        {courtCase.defendant}
+        <span className="sr-only">{partyLabels.defendant}: </span>
+        <span className="line-clamp-2 break-words" title={courtCase.defendant}>
+          {courtCase.defendant}
+        </span>
       </span>
     </>
   )

@@ -11,7 +11,7 @@ import { SpotlightCard } from "@/components/court/spotlight-card"
 import { Button } from "@/components/ui/button"
 import { useSessionHub } from "@/hooks/use-session-hub"
 import { api, sessionLabel, type CourtCase, type SessionDetail, type SessionSummary } from "@/lib/api"
-import type { CaseStatus } from "@/lib/case-status"
+import { getPartyLabels, type CaseStatus } from "@/lib/case-status"
 import { readPageTarget, showDayInUrl, showSessionInUrl, siblingsOf, type DaySessions } from "@/lib/day-sessions"
 
 /** Sent with every status change, as in the original clerk panel. */
@@ -128,6 +128,8 @@ export function ClerkPanel() {
     </Button>
   )
 
+  const partyLabels = getPartyLabels(session?.hearingInfo)
+
   return (
     <PageShell fullHeight={phase.name === "board"}>
       {session && <ConnectionStatus state={hubState} />}
@@ -180,11 +182,16 @@ export function ClerkPanel() {
               <SpotlightCard
                 variant="current"
                 courtCase={session.cases.find((c) => c.caseStatus === "in-progress")}
+                partyLabels={partyLabels}
                 className="lg:flex-1 lg:justify-center"
               />
-              <SpotlightCard variant="next" courtCase={session.cases.find((c) => c.caseStatus === "upcoming-next")} />
+              <SpotlightCard
+                variant="next"
+                courtCase={session.cases.find((c) => c.caseStatus === "upcoming-next")}
+                partyLabels={partyLabels}
+              />
             </section>
-            <CaseList cases={session.cases} onStatusChange={changeStatus} className="lg:h-full" />
+            <CaseList cases={session.cases} partyLabels={partyLabels} onStatusChange={changeStatus} className="lg:h-full" />
           </main>
         </>
       )}
