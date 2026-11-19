@@ -76,7 +76,17 @@ function Party({ role, name, large, onDark }: PartyProps) {
   return (
     <div className="min-w-0">
       <p className={cn("text-sm font-medium", onDark ? "text-primary-foreground/60" : "text-muted-foreground")}>{role}</p>
-      <p className={cn("mt-1 font-semibold text-balance", large ? "text-lg sm:text-2xl" : "text-base sm:text-xl")}>{name}</p>
+      {/* Long lists of names would stretch the card: the case being heard shows up to three
+          lines and the next case two, with the full text on hover. */}
+      <p
+        title={name}
+        className={cn(
+          "mt-1 font-semibold break-words text-balance",
+          large ? "line-clamp-3 text-lg sm:text-2xl" : "line-clamp-2 text-base sm:text-xl"
+        )}
+      >
+        {name}
+      </p>
     </div>
   )
 }
