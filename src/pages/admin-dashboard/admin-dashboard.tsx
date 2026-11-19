@@ -29,6 +29,27 @@ const MONTHS = ["يناير", "فبراير", "مارس", "أبريل", "ماي�
 const DAYS = ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"]
 const ALL = "all"
 
+// The court and hall filters are remembered in this browser, so the dashboard opens on the last choice.
+const FILTER_KEY = "court-roll:dashboard-filter"
+
+function readFilter(): { courtId: string; hallId: string } {
+  try {
+    const saved = JSON.parse(localStorage.getItem(FILTER_KEY) ?? "null")
+    if (typeof saved?.courtId === "string" && typeof saved?.hallId === "string") return saved
+  } catch {
+    // Nothing saved, or storage is blocked.
+  }
+  return { courtId: ALL, hallId: ALL }
+}
+
+function saveFilter(courtId: string, hallId: string) {
+  try {
+    localStorage.setItem(FILTER_KEY, JSON.stringify({ courtId, hallId }))
+  } catch {
+    // Storage is blocked; the choice just won't be remembered.
+  }
+}
+
 const pad = (n: number) => String(n).padStart(2, "0")
 const isoDay = (y: number, m: number, d: number) => `${y}-${pad(m + 1)}-${pad(d)}`
 
@@ -71,8 +92,8 @@ const longDate = new Intl.DateTimeFormat("ar-OM", { weekday: "long", day: "numer
 export function AdminDashboard() {
   const [courts, setCourts] = useState<Court[]>([])
   const [halls, setHalls] = useState<Hall[]>([])
-  const [courtId, setCourtId] = useState(ALL)
-  const [hallId, setHallId] = useState(ALL)
+  const [courtId, setCourtId] = useState(() => readFilter().courtId)
+  const [hallId, setHallId] = useState(() => readFilter().hallId)
   const [month, setMonth] = useState(() => {
     const now = new Date()
     return { year: now.getFullYear(), month: now.getMonth() }
@@ -83,10 +104,30 @@ export function AdminDashboard() {
   const [openDay, setOpenDay] = useState<string | null>(null)
 
   useEffect(() => {
-    api.courts().then(setCourts).catch((error) => {
-      console.error("Error loading courts:", error)
-      toast.error("تعذّر تحميل قائمة المحاكم")
-    })
+    const saved = readFilter()
+    api
+      .courts()
+      .then(async (list) => {
+        setCourts(list)
+        if (saved.courtId === ALL) return
+        // The remembered court or hall may have been removed since; fall back to all.
+        if (!list.some((c) => String(c.courtId) === saved.courtId)) {
+          setCourtId(ALL)
+          setHallId(ALL)
+          saveFilter(ALL, ALL)
+          return
+        }
+        const courtHalls = await api.halls(Number(saved.courtId))
+        setHalls(courtHalls)
+        if (saved.hallId !== ALL && !courtHalls.some((h) => String(h.hallId) === saved.hallId)) {
+          setHallId(ALL)
+          saveFilter(saved.courtId, ALL)
+        }
+      })
+      .catch((error) => {
+        console.error("Error loading courts:", error)
+        toast.error("تعذّر تحميل قائمة المحاكم")
+      })
   }, [])
 
   const calendarKey = `${month.year}-${pad(month.month + 1)}|${courtId}|${hallId}`
@@ -118,6 +159,7 @@ export function AdminDashboard() {
     setCourtId(value)
     setHallId(ALL)
     setHalls([])
+    saveFilter(value, ALL)
     if (value !== ALL) {
       try {
         setHalls(await api.halls(Number(value)))
@@ -125,6 +167,11 @@ export function AdminDashboard() {
         console.error("Error loading halls:", error)
       }
     }
+  }
+
+  const chooseHall = (value: string) => {
+    setHallId(value)
+    saveFilter(courtId, value)
   }
 
   const byDay = useMemo(() => {
@@ -217,7 +264,7 @@ export function AdminDashboard() {
               <Label htmlFor="filter-hall" className="text-xs text-muted-foreground">
                 القاعة
               </Label>
-              <Select value={hallId} onValueChange={setHallId} disabled={courtId === ALL}>
+              <Select value={hallId} onValueChange={chooseHall} disabled={courtId === ALL}>
                 <SelectTrigger id="filter-hall" className="w-full bg-card">
                   <SelectValue />
                 </SelectTrigger>
